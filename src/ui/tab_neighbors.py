@@ -52,7 +52,7 @@ def render_tab_neighbors(data: dict) -> None:
             pcm = float(n.get("pchembl", 0) or 0)
             act = n.get("activity", "Unknown")
             badge_color = "#4ade80" if act == "Active" else "#fbbf24" if act == "Weak" else "#f87171"
-            svg_code = draw_2d_svg(smi, width=240, height=160) if smi else None
+            svg_code = draw_2d_svg(smi, size=(240, 160)) if smi else None
             
             with st.container(border=True):
                 st.markdown(f"<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem'><span style='font-weight:700;color:#38bdf8'>Rank #{idx}</span><span style='background:rgba(56,189,248,0.15);color:#7dd3fc;padding:0.15rem 0.5rem;border-radius:9999px;font-size:0.75rem;font-weight:600'>{tan*100:.1f}% Match</span></div>", unsafe_allow_html=True)

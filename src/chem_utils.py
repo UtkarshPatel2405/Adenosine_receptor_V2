@@ -37,7 +37,9 @@ def mol_from_smiles(smiles: str):
         return None
     return Chem.MolFromSmiles(canon)
 
-def draw_2d(smiles: str, size: tuple[int, int] = (400, 300)):
+def draw_2d(smiles: str, size: tuple[int, int] = (400, 300), width: Optional[int] = None, height: Optional[int] = None):
+    if width is not None and height is not None:
+        size = (width, height)
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
@@ -49,7 +51,9 @@ def draw_2d(smiles: str, size: tuple[int, int] = (400, 300)):
     except Exception:
         return None
 
-def draw_2d_svg(smiles: str, size: tuple[int, int] = (400, 300)):
+def draw_2d_svg(smiles: str, size: tuple[int, int] = (400, 300), width: Optional[int] = None, height: Optional[int] = None):
+    if width is not None and height is not None:
+        size = (width, height)
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
