@@ -1,0 +1,211 @@
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+add_smiles_to_global.py
+
+Add or backfill canonical SMILES and InChIKey into AR_all_unique_parents.csv
+by querying ChEMBL's /molecule/{chembl_id}.json for each parent ID.
+
+Usage
+-----
+# Backfill only (keep existing values; fill missing)
+python add_smiles_to_global.py \
+  --input AR_all_unique_parents.csv \
+  --output AR_all_unique_parents_with_smiles.csv
+
+# Force overwrite of existing SMILES/InChIKey
+python add_smiles_to_global.py \
+  --input AR_all_unique_parents.csv \
+  --output AR_all_unique_parents_with_smiles.csv \
+  --overwrite
+
+# Faster re-runs using a cache + more workers
+python add_smiles_to_global.py \
+  --input AR_all_unique_parents.csv \
+  --output AR_all_unique_parents_with_smiles.csv \
+  --cache chembl_smiles_cache.json \
+  --workers 12
+"""
+
+import os
+import sys
+import time
+import json
+import argparse
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+BASE_DOMAIN = "https://www.ebi.ac.uk"
+ENDPOINT_BASE = f"{BASE_DOMAIN}/chembl/api/data"
+RETRY_STATUSES = (429, 500, 502, 503, 504)
+
+def make_session(max_retries=6, backoff_factor=0.6):
+    sess = requests.Session()
+    retry = Retry(
+        total=max_retries,
+        connect=max_retries,
+        read=max_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=RETRY_STATUSES,
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=32, pool_maxsize=32)
+    sess.mount("https://", adapter)
+    sess.mount("http://", adapter)
+    return sess
+
+SESSION = make_session()
+
+def get_json(url, timeout=(10, 180)):
+    resp = SESSION.get(url, timeout=timeout)
+    resp.raise_for_status()
+    return resp.json()
+
+def fetch_smiles_for_parent(parent_id):
+    """
+    Query ChEMBL for a single parent CHEMBL ID and return:
+      {chembl_id, canonical_smiles, standard_inchi_key, ok, err}
+    """
+    url = f"{ENDPOINT_BASE}/molecule/{parent_id}.json"
+    try:
+        data = get_json(url)
+        ms = data.get("molecule_structures") or {}
+        return {
+            "chembl_id": parent_id,
+            "canonical_smiles": ms.get("canonical_smiles"),
+            "standard_inchi_key": ms.get("standard_inchi_key"),
+            "ok": True,
+            "err": None,
+        }
+    except Exception as e:
+        return {
+            "chembl_id": parent_id,
+            "canonical_smiles": None,
+            "standard_inchi_key": None,
+            "ok": False,
+            "err": str(e)
+        }
+
+def main():
+    ap = argparse.ArgumentParser(description="Add/backfill SMILES into AR_all_unique_parents.csv")
+    ap.add_argument("--input", default="AR_all_unique_parents.csv", help="Input CSV (default: AR_all_unique_parents.csv)")
+    ap.add_argument("--output", default="AR_all_unique_parents_with_smiles.csv", help="Output CSV path")
+    ap.add_argument("--overwrite", action="store_true", help="Overwrite existing canonical_smiles/standard_inchi_key")
+    ap.add_argument("--workers", type=int, default=8, help="Parallel workers (default: 8)")
+    ap.add_argument("--sleep", type=float, default=0.03, help="Sleep between API hits (default: 0.03s)")
+    ap.add_argument("--cache", default=None, help="Optional JSON cache file for fetched structures")
+    args = ap.parse_args()
+
+    if not os.path.exists(args.input):
+        sys.exit(f"Input file not found: {args.input}")
+
+    df = pd.read_csv(args.input)
+    if "parent_molecule_chembl_id" not in df.columns:
+        sys.exit("Column 'parent_molecule_chembl_id' not found in input CSV.")
+
+    # Ensure columns exist
+    for c in ["canonical_smiles", "standard_inchi_key"]:
+        if c not in df.columns:
+            df[c] = None
+
+    # Determine which IDs to fetch
+    if args.overwrite:
+        ids_to_fetch = df["parent_molecule_chembl_id"].dropna().astype(str).unique().tolist()
+    else:
+        mask_missing = df["canonical_smiles"].isna() | (df["canonical_smiles"].astype(str).str.len() == 0)
+        ids_to_fetch = df.loc[mask_missing, "parent_molecule_chembl_id"].dropna().astype(str).unique().tolist()
+
+    # Load cache (if provided)
+    cache = {}
+    if args.cache and os.path.exists(args.cache):
+        try:
+            with open(args.cache, "r", encoding="utf-8") as f:
+                cache = {str(k): v for k, v in json.load(f).items()}
+            print(f"[Cache] Loaded {len(cache)} entries from {args.cache}")
+        except Exception as e:
+            print(f"[Cache] Failed to read cache: {e}")
+
+    results = []
+    to_fetch = []
+    for cid in ids_to_fetch:
+        if cid in cache and cache[cid].get("ok"):
+            # Reuse cache
+            c = cache[cid]
+            results.append({
+                "chembl_id": cid,
+                "canonical_smiles": c.get("canonical_smiles"),
+                "standard_inchi_key": c.get("standard_inchi_key"),
+                "ok": c.get("ok", True),
+                "err": c.get("err")
+            })
+        else:
+            to_fetch.append(cid)
+
+    if to_fetch:
+        print(f"Fetching {len(to_fetch)} IDs from ChEMBL (parallel={args.workers})...")
+        errs = []
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(fetch_smiles_for_parent, cid): cid for cid in to_fetch}
+            for fut in as_completed(futs):
+                cid = futs[fut]
+                try:
+                    r = fut.result()
+                except Exception as e:
+                    r = {"chembl_id": cid, "canonical_smiles": None, "standard_inchi_key": None, "ok": False, "err": str(e)}
+                results.append(r)
+                if not r["ok"]:
+                    errs.append((cid, r.get("err")))
+                time.sleep(args.sleep)  # be polite
+        if errs:
+            print(f"[Warn] {len(errs)} fetches failed; showing first 5:")
+            for e in errs[:5]:
+                print(" ", e)
+    else:
+        print("Nothing new to fetch; using cache/existing values.")
+
+    # Update cache (if requested)
+    if args.cache:
+        try:
+            for r in results:
+                cache[str(r["chembl_id"])] = {
+                    "canonical_smiles": r.get("canonical_smiles"),
+                    "standard_inchi_key": r.get("standard_inchi_key"),
+                    "ok": r.get("ok", True),
+                    "err": r.get("err")
+                }
+            with open(args.cache, "w", encoding="utf-8") as f:
+                json.dump(cache, f, indent=2)
+            print(f"[Cache] Wrote {len(cache)} entries to {args.cache}")
+        except Exception as e:
+            print(f"[Cache] Could not write cache: {e}")
+
+    # Merge back
+    struct_df = pd.DataFrame(results)
+    struct_df.rename(columns={"chembl_id": "parent_molecule_chembl_id"}, inplace=True)
+
+    if args.overwrite:
+        # Replace existing columns entirely
+        df = df.drop(columns=[c for c in ["canonical_smiles","standard_inchi_key"] if c in df.columns], errors="ignore")
+        df = df.merge(struct_df[["parent_molecule_chembl_id","canonical_smiles","standard_inchi_key"]],
+                      on="parent_molecule_chembl_id", how="left")
+    else:
+        # Backfill only where missing
+        df = df.merge(struct_df[["parent_molecule_chembl_id","canonical_smiles","standard_inchi_key"]],
+                      on="parent_molecule_chembl_id", how="left", suffixes=("", "_new"))
+        df["canonical_smiles"] = df["canonical_smiles"].where(df["canonical_smiles"].notna(), df["canonical_smiles_new"])
+        df["standard_inchi_key"] = df["standard_inchi_key"].where(df["standard_inchi_key"].notna(), df["standard_inchi_key_new"])
+        df.drop(columns=["canonical_smiles_new","standard_inchi_key_new"], inplace=True)
+
+    df.to_csv(args.output, index=False)
+    print(f"Done. Wrote: {args.output}")
+
+if __name__ == "__main__":
+    main()
+

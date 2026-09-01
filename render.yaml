@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: adenosine-selectivity-predictor
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8501

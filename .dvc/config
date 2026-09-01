@@ -1,0 +1,7 @@
+[core]
+    remote = local
+    autostage = true
+[cache]
+    type = symlink
+[remote "local"]
+    url = .dvc/cache

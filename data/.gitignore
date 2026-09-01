@@ -1,0 +1,7 @@
+# Data tracked by DVC
+*.pkl
+*.csv
+*.json
+*.parquet
+*.xlsx
+!processed/db_lookup_train.json

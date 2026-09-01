@@ -1,0 +1,494 @@
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ===========================================
+# Adenosine receptors (A1/A2A/A2B/A3) ligand mining from ChEMBL REST API
+# Assay-first; retries; absolute pagination; SINGLE-ID molecule fetch (parallel)
+#
+# Targets (human, single-protein, ChEMBL IDs):
+#   - A1  (ADORA1):  CHEMBL226
+#   - A2A (ADORA2A): CHEMBL251
+#   - A2B (ADORA2B): CHEMBL255
+#   - A3  (ADORA3):  CHEMBL256
+#
+# Filters:
+# - assays: assay_type in {B, F}, confidence_score >= 8
+# - activities: pChEMBL >= 6 and standard_type in IC50/Ki/Kd/EC50/AC50
+#
+# Outputs per target:
+#   <TAG>_agonists.csv, <TAG>_antagonists.csv (+ structure image URLs)
+#
+# Global cross-target de-dup (parent level):
+#   - Reads all generated CSVs (for any subset of targets you ran)
+#   - Keeps one row per parent across ALL receptors: strongest potency
+#     (max pChEMBL, then min standard_value as tiebreak)
+#   - Adds 'best_target', 'targets_hit', 'n_targets_hit', and 'role'
+#   - Writes AR_all_unique_parents.csv
+#   - Also writes AR_all_unique_smiles.csv (optional SMILES-level de-dup)
+#
+# Notes:
+# - Set --restrict_human to require assay_organism == "Homo sapiens"
+# - Be polite to the API; keep MAX_WORKERS_* modest and rate sleeps > 0
+# ===========================================
+
+import math
+import time
+import html
+import sys
+import os
+from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import argparse
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+
+# ---------------------------
+# Default Config (can be overridden via CLI in a limited way)
+# ---------------------------
+BASE_DOMAIN = "https://www.ebi.ac.uk"
+ENDPOINT_BASE = f"{BASE_DOMAIN}/chembl/api/data"
+
+DEFAULT_MIN_PCHEMBL = 6.0                 # ~ <= 1 µM potency
+ASSAY_TYPES = {"B", "F"}                  # Binding + Functional
+MIN_CONF = 8                              # high-confidence single protein mapping
+DEFAULT_PAGE_SIZE_ASSAY = 1000
+DEFAULT_PAGE_SIZE_ACTIVITY = 200
+MAX_WORKERS_ACT = 4                       # polite parallelism across assays
+MAX_WORKERS_MOL = 8                       # polite parallelism for molecule singles
+RETRY_STATUSES = (429, 500, 502, 503, 504)
+MAX_RETRIES = 6
+CONNECT_TIMEOUT = 10
+READ_TIMEOUT = 180
+SLEEP_BETWEEN_HITS = 0.03
+STD_TYPES = {"IC50", "Ki", "Kd", "EC50", "AC50"}
+
+# Targets map: tag -> (ChEMBL ID, friendly name)
+TARGET_MAP = {
+    "A1R":  ("CHEMBL226", "Adenosine A1 receptor"),
+    "A2AR": ("CHEMBL251", "Adenosine A2A receptor"),
+    "A2BR": ("CHEMBL255", "Adenosine A2B receptor"),
+    "A3R":  ("CHEMBL256", "Adenosine A3 receptor"),
+}
+
+# ---------------------------
+# Session with retry/backoff
+# ---------------------------
+def make_session():
+    sess = requests.Session()
+    retry = Retry(
+        total=MAX_RETRIES,
+        connect=MAX_RETRIES,
+        read=MAX_RETRIES,
+        backoff_factor=0.6,
+        status_forcelist=RETRY_STATUSES,
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=32, pool_maxsize=32)
+    sess.mount("https://", adapter)
+    sess.mount("http://", adapter)
+    return sess
+
+SESSION = make_session()
+
+def get_json(url, params=None):
+    """GET JSON with session + long read timeout; caller handles pagination."""
+    resp = SESSION.get(url, params=params, timeout=(CONNECT_TIMEOUT, READ_TIMEOUT))
+    resp.raise_for_status()
+    return resp.json()
+
+def fetch_pages(endpoint, params, desc, page_size_override=None):
+    """Paginate endpoint with progress; handle relative next links & HTML entities."""
+    url = f"{ENDPOINT_BASE}/{endpoint}.json"
+    if params and page_size_override and "limit" not in params:
+        params["limit"] = page_size_override
+    out, n = [], 0
+    pbar = tqdm(total=0, unit="page", desc=desc, leave=True)
+    while url:
+        data = get_json(url, params=params)
+        if endpoint == "activity":
+            items = data.get("activities", [])
+        elif endpoint == "assay":
+            items = data.get("assays", [])
+        else:
+            items = data.get(endpoint, []) or data.get(f"{endpoint}s", [])
+        out.extend(items)
+        n += 1
+        pbar.total = n
+        pbar.update(0)
+        next_url = data.get("page_meta", {}).get("next", None)
+        if next_url:
+            next_url = html.unescape(next_url)
+            url = urljoin(BASE_DOMAIN, next_url)
+            params = None
+        else:
+            url = None
+        time.sleep(SLEEP_BETWEEN_HITS)
+    pbar.close()
+    return out
+
+def to_float(x, default):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+# ---------------------------
+# Core workflow for one target
+# ---------------------------
+def run_for_target(TARGET, TAG, FRIENDLY, min_pchembl, assay_organism,
+                   page_size_assay, page_size_activity):
+    print(f"\n=== {FRIENDLY} ({TARGET}) -> tag {TAG} ===")
+
+    checkpoint_act = f"{TAG}_activities_filtered.csv"
+
+    # 1) Assays for TARGET
+    assay_params = {"target_chembl_id": TARGET, "confidence_score__gte": MIN_CONF}
+    assays = fetch_pages(
+        "assay",
+        assay_params,
+        desc=f"[{TAG}] Fetching assays",
+        page_size_override=page_size_assay
+    )
+
+    assay_df = pd.DataFrame(assays)
+    if assay_df.empty:
+        print(f"[{TAG}] No assays found with confidence >= {MIN_CONF}. Skipping.")
+        return None
+
+    assay_keep = ["assay_chembl_id", "assay_type", "confidence_score", "assay_organism"]
+    assay_df = assay_df[[c for c in assay_keep if c in assay_df.columns]].copy()
+    assay_df["assay_type"] = assay_df["assay_type"].astype(str)
+    assay_df = assay_df[assay_df["assay_type"].isin(list(ASSAY_TYPES))]
+    if assay_organism and "assay_organism" in assay_df.columns:
+        assay_df = assay_df[
+            (assay_df["assay_organism"].isna()) |
+            (assay_df["assay_organism"] == assay_organism)
+        ]
+    assay_ids = sorted(assay_df["assay_chembl_id"].dropna().unique().tolist())
+    if not assay_ids:
+        print(f"[{TAG}] No Binding/Functional assays left after filtering. Skipping.")
+        return None
+    print(f"[{TAG}] Assays selected: {len(assay_ids)}")
+
+    # 2) Activities per assay (parallel)
+    def fetch_activities_for_assay(aid):
+        url = f"{ENDPOINT_BASE}/activity.json"
+        params = {
+            "assay_chembl_id": aid,
+            "pchembl_value__gte": min_pchembl,
+            "standard_type__in": ",".join(sorted(STD_TYPES)),
+            "limit": page_size_activity,
+        }
+        rows = []
+        while True:
+            try:
+                data = get_json(url, params=params)
+            except requests.RequestException as e:
+                return aid, rows, str(e)
+            rows.extend(data.get("activities", []))
+            next_url = data.get("page_meta", {}).get("next", None)
+            if not next_url:
+                break
+            next_url = html.unescape(next_url)
+            url = urljoin(BASE_DOMAIN, next_url)
+            params = None
+            time.sleep(SLEEP_BETWEEN_HITS)
+        return aid, rows, None
+
+    if os.path.exists(checkpoint_act):
+        act_df = pd.read_csv(checkpoint_act)
+        print(f"[{TAG}] Loaded checkpoint: {checkpoint_act} (rows={len(act_df)})")
+    else:
+        all_rows, errs = [], []
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS_ACT) as ex:
+            futs = {ex.submit(fetch_activities_for_assay, aid): aid for aid in assay_ids}
+            for fut in tqdm(as_completed(futs), total=len(futs),
+                            desc=f"[{TAG}] Fetching activities (assay tasks)", unit="assay"):
+                aid = futs[fut]
+                try:
+                    a_id, rows, err = fut.result()
+                except Exception as e:
+                    errs.append((aid, str(e))); continue
+                if err:
+                    errs.append((aid, err))
+                all_rows.extend(rows)
+        if errs:
+            print(f"[{TAG}] Warning: {len(errs)} assays had errors/timeouts; continuing. First few:", file=sys.stderr)
+            for pair in errs[:5]:
+                print(" ", pair, file=sys.stderr)
+        act_keep = [
+            "activity_id","assay_chembl_id",
+            "target_chembl_id","molecule_chembl_id",
+            "standard_type","standard_relation","standard_value","standard_units",
+            "pchembl_value","document_chembl_id"
+        ]
+        act_df = pd.DataFrame(all_rows)
+        if act_df.empty:
+            print(f"[{TAG}] No activities returned at pChEMBL >= {min_pchembl}. Skipping.")
+            return None
+        act_df = act_df[[c for c in act_keep if c in act_df.columns]].copy()
+        act_df["pchembl_value"] = pd.to_numeric(act_df["pchembl_value"], errors="coerce")
+        act_df = act_df.dropna(subset=["molecule_chembl_id", "pchembl_value"])
+        # Attach assay metadata
+        act_df = act_df.merge(assay_df, on="assay_chembl_id", how="left")
+        # Write checkpoint
+        act_df.to_csv(checkpoint_act, index=False)
+        print(f"[{TAG}] Checkpoint written: {checkpoint_act} (rows={len(act_df)})")
+
+    print(f"[{TAG}] activity rows: {len(act_df)}")
+    print(f"[{TAG}] unique molecule_chembl_id: {act_df['molecule_chembl_id'].nunique()}")
+
+    # 3) Molecules (SINGLE-ID requests)
+    mol_ids = sorted(act_df["molecule_chembl_id"].dropna().unique().tolist())
+
+    def fetch_molecule_single(cid):
+        url = f"{ENDPOINT_BASE}/molecule/{cid}.json"
+        try:
+            data = get_json(url)
+        except requests.RequestException as e:
+            return cid, None, str(e)
+        return cid, data, None
+
+    mols_rows, mol_errs = [], []
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS_MOL) as ex:
+        futs = {ex.submit(fetch_molecule_single, cid): cid for cid in mol_ids}
+        for fut in tqdm(as_completed(futs), total=len(futs),
+                        desc=f"[{TAG}] Fetching molecules (by id)", unit="mol"):
+            cid = futs[fut]
+            try:
+                cid, obj, err = fut.result()
+            except Exception as e:
+                mol_errs.append((cid, str(e))); continue
+            if err or not isinstance(obj, dict):
+                mol_errs.append((cid, err or "Empty/invalid object")); continue
+            mols_rows.append(obj)
+            time.sleep(SLEEP_BETWEEN_HITS)
+    if mol_errs:
+        print(f"[{TAG}] Warning: {len(mol_errs)} molecules failed; continuing. First few:", file=sys.stderr)
+        for pair in mol_errs[:5]:
+            print(" ", pair, file=sys.stderr)
+    mols = pd.DataFrame(mols_rows)
+
+    def get_smiles(x):
+        return x.get("molecule_structures", {}).get("canonical_smiles") if isinstance(x, dict) else None
+
+    mols["canonical_smiles"] = mols.apply(get_smiles, axis=1)
+
+    def get_parent(row):
+        pm = row.get("parent_molecule")
+        if isinstance(pm, dict):
+            return pm.get("chembl_id")
+        return row.get("parent_molecule_chembl_id")
+
+    mols["parent_molecule_chembl_id"] = mols.apply(get_parent, axis=1)
+    print(f"[{TAG}] Molecule records fetched: {len(mols)}")
+
+    # 4) Merge + parent-level dedup (best potency per parent within this target)
+    merged = act_df.merge(
+        mols[["molecule_chembl_id","pref_name","canonical_smiles","parent_molecule_chembl_id"]],
+        on="molecule_chembl_id", how="left"
+    )
+    merged["parent_molecule_chembl_id"] = merged["parent_molecule_chembl_id"].fillna(merged["molecule_chembl_id"])
+    merged["_p"]  = merged["pchembl_value"].apply(lambda v: to_float(v, default=-1))        # higher better
+    merged["_nM"] = merged["standard_value"].apply(lambda v: to_float(v, default=math.inf)) # lower better
+    merged = merged.sort_values(by=["parent_molecule_chembl_id","_p","_nM"], ascending=[True, False, True])
+    best = merged.drop_duplicates(subset=["parent_molecule_chembl_id"], keep="first").copy()
+
+    # 5) Agonists vs Antagonists
+    agon_mask = best["standard_type"].isin(["EC50","AC50"])
+    agonists   = best[agon_mask].copy()
+    antagonists= best[~agon_mask].copy()
+
+    # 6) 2D structure image URLs
+    for df in (agonists, antagonists):
+        df["structure_image_url"] = df["parent_molecule_chembl_id"].apply(
+            lambda x: f"{ENDPOINT_BASE}/image/{x}.png"
+        )
+        # Tag + role helpful for downstream global de-dup
+        df["TAG"] = TAG
+        df["role"] = np.where(df["standard_type"].isin(["EC50","AC50"]), "agonist", "antagonist")
+        # Ensure target_chembl_id present
+        if "target_chembl_id" not in df.columns:
+            df["target_chembl_id"] = TARGET
+
+    # 7) Export CSVs
+    cols = [
+        "parent_molecule_chembl_id","pref_name","canonical_smiles","structure_image_url",
+        "pchembl_value","standard_type","standard_relation","standard_value","standard_units",
+        "role","assay_chembl_id","assay_type","confidence_score","assay_organism",
+        "molecule_chembl_id","target_chembl_id","TAG"
+    ]
+    agonists[cols].to_csv(f"{TAG}_agonists.csv", index=False)
+    antagonists[cols].to_csv(f"{TAG}_antagonists.csv", index=False)
+
+    print(f"\n[{TAG}] Done.")
+    print(f"[{TAG}] Activities collected: {len(act_df)}")
+    print(f"[{TAG}] Unique parents total: {len(best)}")
+    print(f"[{TAG}] Agonists (parents): {len(agonists)}")
+    print(f"[{TAG}] Antagonists (parents): {len(antagonists)}")
+    print(f"[{TAG}] Files written: {TAG}_agonists.csv, {TAG}_antagonists.csv")
+
+    return True
+
+# ---------------------------
+# Global cross-target de-duplication
+# ---------------------------
+def run_global_dedup():
+    # Collect any per-target CSVs that exist
+    candidates = []
+    for tag in TARGET_MAP.keys():
+        candidates.extend([f"{tag}_agonists.csv", f"{tag}_antagonists.csv"])
+    files = [f for f in candidates if os.path.exists(f)]
+    if not files:
+        print("[GLOBAL] No per-target CSVs found; skipping global de-dup.")
+        return
+
+    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    if df.empty:
+        print("[GLOBAL] Input files are empty; skipping.")
+        return
+
+    # Normalize numeric fields
+    df["pchembl_value"] = pd.to_numeric(df["pchembl_value"], errors="coerce")
+    df["standard_value"] = pd.to_numeric(df["standard_value"], errors="coerce")
+
+    # Sanity: ensure TAG and role exist (older per-target outputs may not have them)
+    if "TAG" not in df.columns:
+        # Infer from target_chembl_id as fallback
+        def infer_tag_from_tid(tid):
+            tid = (str(tid) if tid is not None else "").upper()
+            if tid == "CHEMBL226": return "A1R"
+            if tid == "CHEMBL251": return "A2AR"
+            if tid == "CHEMBL255": return "A2BR"
+            if tid == "CHEMBL256": return "A3R"
+            return "AR?"
+        df["TAG"] = df["target_chembl_id"].apply(infer_tag_from_tid)
+
+    if "role" not in df.columns:
+        df["role"] = np.where(df["standard_type"].isin(["EC50","AC50"]), "agonist", "antagonist")
+
+    # Aggregate annotations: which subtypes each parent hits
+    def _set_str(x):
+        return ";".join(sorted({v for v in x if isinstance(v, str)}))
+    hits = df.groupby("parent_molecule_chembl_id")["TAG"].apply(_set_str)
+    n_hits = df.groupby("parent_molecule_chembl_id")["TAG"].apply(lambda s: len({v for v in s if isinstance(v, str)}))
+
+    # Ranking keys for best record per parent across ALL receptors
+    df["_rk1"] = df["pchembl_value"].fillna(-1)       # higher better
+    df["_rk2"] = df["standard_value"].fillna(np.inf)  # lower better
+
+    # Optional: target preference in ties (lower is better). Uncomment to enforce.
+    # priority = {"A2AR": 0, "A2BR": 1, "A3R": 2, "A1R": 3, "AR?": 9}
+    # df["_rk3"] = df["TAG"].map(priority).fillna(9)
+
+    sort_keys = ["parent_molecule_chembl_id","_rk1","_rk2"]  # add "_rk3" here if you use priority
+    sort_orders = [True, False, True]
+
+    df = df.sort_values(by=sort_keys, ascending=sort_orders)
+    best_global = df.drop_duplicates(subset=["parent_molecule_chembl_id"], keep="first").copy()
+
+    # Attach annotations
+    best_global["targets_hit"]   = best_global["parent_molecule_chembl_id"].map(hits)
+    best_global["n_targets_hit"] = best_global["parent_molecule_chembl_id"].map(n_hits)
+    best_global["best_target"]   = best_global["TAG"]
+
+    # Column order
+    cols_front = [
+        "parent_molecule_chembl_id","pref_name","canonical_smiles","structure_image_url",
+        "pchembl_value","standard_type","standard_relation","standard_value","standard_units",
+        "role","best_target","targets_hit","n_targets_hit",
+        "assay_chembl_id","assay_type","confidence_score","assay_organism",
+        "molecule_chembl_id","target_chembl_id","TAG"
+    ]
+    cols_front = [c for c in cols_front if c in best_global.columns]
+    best_global = best_global[cols_front]
+
+    best_global.to_csv("AR_all_unique_parents.csv", index=False)
+    print(f"[GLOBAL] Wrote AR_all_unique_parents.csv (rows={len(best_global)})")
+
+    # (Optional) SMILES-level global de-dup
+    if "canonical_smiles" in df.columns:
+        df_sm = df.dropna(subset=["canonical_smiles"]).copy()
+        df_sm = df_sm.sort_values(by=["canonical_smiles","_rk1","_rk2"], ascending=[True, False, True])
+        best_smiles = df_sm.drop_duplicates(subset=["canonical_smiles"], keep="first").copy()
+        best_smiles["targets_hit"]   = best_smiles["parent_molecule_chembl_id"].map(hits)
+        best_smiles["n_targets_hit"] = best_smiles["parent_molecule_chembl_id"].map(n_hits)
+        best_smiles["best_target"]   = best_smiles["TAG"]
+        best_smiles = best_smiles[[c for c in cols_front if c in best_smiles.columns]]
+        best_smiles.to_csv("AR_all_unique_smiles.csv", index=False)
+        print(f"[GLOBAL] Wrote AR_all_unique_smiles.csv (rows={len(best_smiles)})")
+
+# ---------------------------
+# CLI
+# ---------------------------
+def parse_args():
+    ap = argparse.ArgumentParser(
+        description="Mine A1/A2A/A2B/A3 adenosine receptor ligands from ChEMBL and perform cross-target de-dup."
+    )
+    ap.add_argument(
+        "--targets",
+        type=str,
+        default="A1R,A2AR,A2BR,A3R",
+        help="Comma-separated list of receptor tags to mine (subset of A1R,A2AR,A2BR,A3R). Default: all four."
+    )
+    ap.add_argument(
+        "--min_pchembl",
+        type=float,
+        default=DEFAULT_MIN_PCHEMBL,
+        help=f"Minimum pChEMBL threshold (default {DEFAULT_MIN_PCHEMBL})."
+    )
+    ap.add_argument(
+        "--restrict_human",
+        action="store_true",
+        help='Restrict assays to assay_organism == "Homo sapiens" (by default, no restriction).'
+    )
+    ap.add_argument(
+        "--page_size_assay",
+        type=int,
+        default=DEFAULT_PAGE_SIZE_ASSAY,
+        help=f"Assay page size (default {DEFAULT_PAGE_SIZE_ASSAY})."
+    )
+    ap.add_argument(
+        "--page_size_activity",
+        type=int,
+        default=DEFAULT_PAGE_SIZE_ACTIVITY,
+        help=f"Activity page size (default {DEFAULT_PAGE_SIZE_ACTIVITY})."
+    )
+    return ap.parse_args()
+
+def main():
+    args = parse_args()
+    tags = [t.strip().upper() for t in args.targets.split(",") if t.strip()]
+    unknown = [t for t in tags if t not in TARGET_MAP]
+    if unknown:
+        raise SystemExit(f"Unknown target tags: {unknown}. Allowed: {list(TARGET_MAP.keys())}")
+
+    assay_organism = "Homo sapiens" if args.restrict_human else None
+
+    # Run per-target mining
+    any_ran = False
+    for tag in tags:
+        target_id, name = TARGET_MAP[tag]
+        ok = run_for_target(
+            target_id, tag, name,
+            min_pchembl=args.min_pchembl,
+            assay_organism=assay_organism,
+            page_size_assay=args.page_size_assay,
+            page_size_activity=args.page_size_activity
+        )
+        any_ran = any_ran or bool(ok)
+
+    # Global cross-target de-dup
+    if any_ran:
+        run_global_dedup()
+    else:
+        print("No targets completed; global de-dup skipped.")
+
+if __name__ == "__main__":
+    main()
+

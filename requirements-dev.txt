@@ -1,0 +1,10 @@
+pytest
+pytest-cov
+pytest-xdist
+ruff
+mypy
+pre-commit
+dvc
+dvc-gs
+mlflow
+optuna
