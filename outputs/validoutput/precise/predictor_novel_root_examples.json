@@ -1,0 +1,47 @@
+[
+  {
+    "result": {
+      "best_target": "A1",
+      "predictions": {
+        "A1": 4.49165715499856,
+        "A2A": 4.23968642405379,
+        "A2B": 3.213508791796283,
+        "A3": 4.068743040216985
+      },
+      "smiles": "c1ccc2[nH]ccc2c1",
+      "source": "model",
+      "target_hits": []
+    },
+    "smiles": "c1ccc2[nH]ccc2c1"
+  },
+  {
+    "result": {
+      "best_target": "A1",
+      "predictions": {
+        "A1": 4.714949656520538,
+        "A2A": 3.848634095884748,
+        "A2B": 3.183450998608912,
+        "A3": 3.5809222123388884
+      },
+      "smiles": "CCN(CC)CCc1ccc2[nH]ccc2c1",
+      "source": "model",
+      "target_hits": []
+    },
+    "smiles": "CCN(CC)CCc1ccc2[nH]ccc2c1"
+  },
+  {
+    "result": {
+      "best_target": "A1",
+      "predictions": {
+        "A1": 3.617058843516984,
+        "A2A": 3.490398505151462,
+        "A2B": 3.0123618492972297,
+        "A3": 3.3907727476029876
+      },
+      "smiles": "CCOc1ccc2nc(S(N)(=O)=O)sc2c1",
+      "source": "model",
+      "target_hits": []
+    },
+    "smiles": "CCOc1ccc2nc(S(N)(=O)=O)sc2c1"
+  }
+]

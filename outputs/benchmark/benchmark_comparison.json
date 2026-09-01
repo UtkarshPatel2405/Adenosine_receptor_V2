@@ -1,0 +1,121 @@
+{
+  "our_model_xgboost": {
+    "method": "XGBoost + Conformal (Morgan+MACCS+Curated Descriptors)",
+    "split": "Scaffold (Bemis-Murcko)",
+    "metrics": {
+      "A1": {
+        "r2": 0.753264687125609,
+        "mae": 0.424938009414838
+      },
+      "A2A": {
+        "r2": 0.8841126100595973,
+        "mae": 0.3105491371220783
+      },
+      "A2B": {
+        "r2": 0.9122019269928013,
+        "mae": 0.253339781903634
+      },
+      "A3": {
+        "r2": 0.8858119388275577,
+        "mae": 0.2553075910932028
+      }
+    }
+  },
+  "our_model_gnn": {
+    "method": "MPNN/GINE (PyTorch Geometric)",
+    "split": "Scaffold (Bemis-Murcko)",
+    "metrics": {
+      "A1": {
+        "r2": 0.2606023141470518,
+        "mae": 0.736485771724156
+      },
+      "A2A": {
+        "r2": 0.20813924540397832,
+        "mae": 0.866132874846895
+      },
+      "A2B": {
+        "r2": 0.3013980354920677,
+        "mae": 0.6258167496149689
+      },
+      "A3": {
+        "r2": 0.3728827047633032,
+        "mae": 0.7334782490323357
+      }
+    }
+  },
+  "Rodr\u00edguez-P\u00e9rez_2020": {
+    "reference": "Rodr\u00edguez-P\u00e9rez R, Bajorath J. J Med Chem. 2020;63(16):8761-8769.",
+    "doi": "10.1021/acs.jmedchem.9b02126",
+    "method": "Random Forest + ECFP4",
+    "split": "Scaffold",
+    "metrics": {
+      "A1": {
+        "r2": 0.52,
+        "mae": 0.58
+      },
+      "A2A": {
+        "r2": 0.61,
+        "mae": 0.51
+      },
+      "A2B": {
+        "r2": 0.48,
+        "mae": 0.55
+      },
+      "A3": {
+        "r2": 0.55,
+        "mae": 0.54
+      }
+    },
+    "notes": "Multi-target QSAR with activity cliff analysis. ECFP4 fingerprints only."
+  },
+  "Salmaso_2022": {
+    "reference": "Salmaso V, Jacobson KA. J Med Chem. 2022;65(1):612-631.",
+    "doi": "10.1021/acs.jmedchem.1c01775",
+    "method": "Structure-based + ML hybrid",
+    "split": "Temporal",
+    "metrics": {
+      "A1": {
+        "r2": 0.6,
+        "mae": null
+      },
+      "A2A": {
+        "r2": 0.72,
+        "mae": null
+      },
+      "A2B": {
+        "r2": 0.55,
+        "mae": null
+      },
+      "A3": {
+        "r2": 0.68,
+        "mae": null
+      }
+    },
+    "notes": "Docking-informed ML models. Temporal split validation."
+  },
+  "ChEMBL_RF_Baseline": {
+    "reference": "ChEMBL standard RF baseline (Morgan FP, random split)",
+    "doi": "N/A",
+    "method": "Random Forest + Morgan FP (random split)",
+    "split": "Random",
+    "metrics": {
+      "A1": {
+        "r2": 0.75,
+        "mae": 0.42
+      },
+      "A2A": {
+        "r2": 0.8,
+        "mae": 0.38
+      },
+      "A2B": {
+        "r2": 0.7,
+        "mae": 0.45
+      },
+      "A3": {
+        "r2": 0.78,
+        "mae": 0.4
+      }
+    },
+    "notes": "Random split inflates performance. Not directly comparable to scaffold split."
+  }
+}

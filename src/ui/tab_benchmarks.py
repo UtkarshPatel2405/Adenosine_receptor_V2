@@ -49,9 +49,12 @@ def render_tab_benchmarks() -> None:
                 plot_metrics.append({"Subtype": f"Human {s}", "R² Score": r2, "MAE (log units)": mae})
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
-        fig = px.bar(pd.DataFrame(plot_metrics), x="Subtype", y=["R² Score", "MAE (log units)"], barmode="group", color_discrete_sequence=["#38bdf8", "#a78bfa"], title="Subtype Accuracy & Error across Independent Scaffold Test Sets")
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="#f8fafc"), height=280, margin=dict(l=10, r=10, t=35, b=10))
-        st.plotly_chart(fig, width="stretch")
+        if plot_metrics:
+            fig = px.bar(pd.DataFrame(plot_metrics), x="Subtype", y=["R² Score", "MAE (log units)"], barmode="group", color_discrete_sequence=["#38bdf8", "#a78bfa"], title="Subtype Accuracy & Error across Independent Scaffold Test Sets")
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="#f8fafc"), height=280, margin=dict(l=10, r=10, t=35, b=10))
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.info("Benchmark evaluation metrics currently loading or unavailable.")
 
         ov = bm_data.get("overall", {})
         if ov:

@@ -1,0 +1,10 @@
+{
+  "subtype": "A2B",
+  "model": "MPNN/GINE",
+  "r2": 0.3184468483516839,
+  "mae": 0.7082089265835018,
+  "rmse": 0.8936635366465621,
+  "best_epoch": 4,
+  "train_size": 1955,
+  "test_size": 491
+}

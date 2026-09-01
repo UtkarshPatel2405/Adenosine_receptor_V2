@@ -1,0 +1,65 @@
+{
+  "subtype": "A1",
+  "mode": "precise",
+  "top_features": [
+    {
+      "rank": 1,
+      "feature": "MaxPartialCharge",
+      "mean_abs_shap": 0.3272800147533417
+    },
+    {
+      "rank": 2,
+      "feature": "Kappa3",
+      "mean_abs_shap": 0.1283816546201706
+    },
+    {
+      "rank": 3,
+      "feature": "NumAromaticHeterocycles",
+      "mean_abs_shap": 0.10837789624929428
+    },
+    {
+      "rank": 4,
+      "feature": "Morgan_FP_1724",
+      "mean_abs_shap": 0.07288087904453278
+    },
+    {
+      "rank": 5,
+      "feature": "MACCS_86",
+      "mean_abs_shap": 0.07049331814050674
+    },
+    {
+      "rank": 6,
+      "feature": "MolLogP",
+      "mean_abs_shap": 0.05814700946211815
+    },
+    {
+      "rank": 7,
+      "feature": "Morgan_FP_1224",
+      "mean_abs_shap": 0.04920753836631775
+    },
+    {
+      "rank": 8,
+      "feature": "MolWt",
+      "mean_abs_shap": 0.04364689812064171
+    },
+    {
+      "rank": 9,
+      "feature": "Morgan_FP_504",
+      "mean_abs_shap": 0.04005066305398941
+    },
+    {
+      "rank": 10,
+      "feature": "MACCS_43",
+      "mean_abs_shap": 0.03978952392935753
+    }
+  ],
+  "sanity_check": {
+    "status": "PASS",
+    "message": "Top features are dominated by structurally relevant physicochemical properties.",
+    "expected_features_found": [
+      "LogP",
+      "MolWt",
+      "MolLogP"
+    ]
+  }
+}

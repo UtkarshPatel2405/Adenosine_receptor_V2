@@ -1,0 +1,87 @@
+[
+  {
+    "result": {
+      "best_target": "A2A",
+      "predictions": {
+        "A1": 0.0,
+        "A2A": 6.61,
+        "A2B": 0.0,
+        "A3": 0.0
+      },
+      "smiles": "Brc1cccc(Nc2nc3c(N4CCCC4)ncnc3s2)c1",
+      "source": "database",
+      "target_hits": [
+        "A2A"
+      ]
+    },
+    "smiles": "Brc1cccc(Nc2nc3c(N4CCCC4)ncnc3s2)c1"
+  },
+  {
+    "result": {
+      "best_target": "A2A",
+      "predictions": {
+        "A1": 0.0,
+        "A2A": 7.7,
+        "A2B": 0.0,
+        "A3": 0.0
+      },
+      "smiles": "C#CC(C)(C)N1CCC[C@@H](c2nc3c4cccc(OC)c4nc(N)n3n2)C1",
+      "source": "database",
+      "target_hits": [
+        "A2A"
+      ]
+    },
+    "smiles": "C#CC(C)(C)N1CCC[C@@H](c2nc3c4cccc(OC)c4nc(N)n3n2)C1"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "predictions": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 7.96
+      },
+      "smiles": "C#CCCC(=O)Nc1nc2nn(C)cc2c2nc(-c3ccco3)nn12",
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ]
+    },
+    "smiles": "C#CCCC(=O)Nc1nc2nn(C)cc2c2nc(-c3ccco3)nn12"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "predictions": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 7.63
+      },
+      "smiles": "C#CCCCC#Cc1nc(NCc2cccc(Cl)c2)c2ncn([C@@H]3[C@H](O)[C@H](O)[C@]4(C(=O)NC)C[C@H]34)c2n1",
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ]
+    },
+    "smiles": "C#CCCCC#Cc1nc(NCc2cccc(Cl)c2)c2ncn([C@@H]3[C@H](O)[C@H](O)[C@]4(C(=O)NC)C[C@H]34)c2n1"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "predictions": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 7.47
+      },
+      "smiles": "C#CCCCC(=O)Nc1nc2cccc(Cl)c2c2nc(-c3ccco3)nn12",
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ]
+    },
+    "smiles": "C#CCCCC(=O)Nc1nc2cccc(Cl)c2c2nc(-c3ccco3)nn12"
+  }
+]

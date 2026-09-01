@@ -1,0 +1,64 @@
+{
+  "subtype": "A2A",
+  "mode": "precise",
+  "top_features": [
+    {
+      "rank": 1,
+      "feature": "Morgan_FP_1457",
+      "mean_abs_shap": 0.3125550150871277
+    },
+    {
+      "rank": 2,
+      "feature": "MACCS_84",
+      "mean_abs_shap": 0.10843078047037125
+    },
+    {
+      "rank": 3,
+      "feature": "SMR_VSA3",
+      "mean_abs_shap": 0.08106005191802979
+    },
+    {
+      "rank": 4,
+      "feature": "SlogP_VSA8",
+      "mean_abs_shap": 0.06263498216867447
+    },
+    {
+      "rank": 5,
+      "feature": "PEOE_VSA12",
+      "mean_abs_shap": 0.05478527769446373
+    },
+    {
+      "rank": 6,
+      "feature": "MolLogP",
+      "mean_abs_shap": 0.04835803061723709
+    },
+    {
+      "rank": 7,
+      "feature": "Morgan_FP_964",
+      "mean_abs_shap": 0.039805639535188675
+    },
+    {
+      "rank": 8,
+      "feature": "Morgan_FP_131",
+      "mean_abs_shap": 0.038157351315021515
+    },
+    {
+      "rank": 9,
+      "feature": "SMR_VSA9",
+      "mean_abs_shap": 0.0378921777009964
+    },
+    {
+      "rank": 10,
+      "feature": "EState_VSA3",
+      "mean_abs_shap": 0.03239218518137932
+    }
+  ],
+  "sanity_check": {
+    "status": "PASS",
+    "message": "Top features are dominated by structurally relevant physicochemical properties.",
+    "expected_features_found": [
+      "LogP",
+      "MolLogP"
+    ]
+  }
+}

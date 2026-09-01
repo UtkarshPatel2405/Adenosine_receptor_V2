@@ -1,0 +1,50 @@
+[
+  {
+    "run_id": "ADENO_20260622_113757_ab9470",
+    "timestamp": "2026-06-22 11:37:57",
+    "metadata": {
+      "run_id": "ADENO_20260622_113757_ab9470",
+      "timestamp": "2026-06-22 11:37:57",
+      "skip_retrain": false,
+      "skip_gnn": true,
+      "y_rand_iterations": 20,
+      "gnn_epochs": 100
+    }
+  },
+  {
+    "run_id": "ADENO_20260622_114340_50ab0c",
+    "timestamp": "2026-06-22 11:43:40",
+    "metadata": {
+      "run_id": "ADENO_20260622_114340_50ab0c",
+      "timestamp": "2026-06-22 11:43:40",
+      "skip_retrain": false,
+      "skip_gnn": true,
+      "y_rand_iterations": 20,
+      "gnn_epochs": 100
+    }
+  },
+  {
+    "run_id": "ADENO_20260622_115234_b1bad7",
+    "timestamp": "2026-06-22 11:52:34",
+    "metadata": {
+      "run_id": "ADENO_20260622_115234_b1bad7",
+      "timestamp": "2026-06-22 11:52:34",
+      "skip_retrain": false,
+      "skip_gnn": true,
+      "y_rand_iterations": 20,
+      "gnn_epochs": 100
+    }
+  },
+  {
+    "run_id": "ADENO_20260622_120921_8b1acf",
+    "timestamp": "2026-06-22 12:09:21",
+    "metadata": {
+      "run_id": "ADENO_20260622_120921_8b1acf",
+      "timestamp": "2026-06-22 12:09:21",
+      "skip_retrain": false,
+      "skip_gnn": true,
+      "y_rand_iterations": 20,
+      "gnn_epochs": 100
+    }
+  }
+]

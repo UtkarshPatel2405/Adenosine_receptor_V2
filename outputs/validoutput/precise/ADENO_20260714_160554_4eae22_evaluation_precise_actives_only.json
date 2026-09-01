@@ -1,0 +1,245 @@
+{
+  "data_path": "data/raw",
+  "include_decoys": false,
+  "mode": "precise",
+  "n_test": 3486,
+  "n_train": 14966,
+  "overall": {
+    "baseline_mae": 1.0228649356211428,
+    "baseline_r2": -0.003438671905314994,
+    "baseline_rmse": 1.233261078451041,
+    "calibration_quartiles": [
+      {
+        "bin": 1,
+        "mae_mean": 0.5420868096052949,
+        "n": 872,
+        "std_mean": 0.6064518920642819
+      },
+      {
+        "bin": 2,
+        "mae_mean": 0.5580877600910179,
+        "n": 872,
+        "std_mean": 0.6446939254411409
+      },
+      {
+        "bin": 3,
+        "mae_mean": 0.5839686999081946,
+        "n": 871,
+        "std_mean": 0.6594078340962671
+      },
+      {
+        "bin": 4,
+        "mae_mean": 0.6800734372215387,
+        "n": 871,
+        "std_mean": 0.6946715249151605
+      }
+    ],
+    "conformal_coverage_90": 0.8580034423407917,
+    "model_mae": 0.5910306730393524,
+    "model_r2": 0.6107838565485546,
+    "model_rmse": 0.7680774781921103
+  },
+  "per_subtype": {
+    "A1": {
+      "baseline_mae": 0.891621387624189,
+      "baseline_r2": -0.006000574993787922,
+      "baseline_rmse": 1.0993158052852414,
+      "calibration_quartiles": [
+        {
+          "bin": 1,
+          "mae_mean": 0.5751937594524802,
+          "n": 221,
+          "std_mean": 0.6785969095099332
+        },
+        {
+          "bin": 2,
+          "mae_mean": 0.6393507237746583,
+          "n": 221,
+          "std_mean": 0.6827325623522276
+        },
+        {
+          "bin": 3,
+          "mae_mean": 0.6515866153328878,
+          "n": 221,
+          "std_mean": 0.6891524362322091
+        },
+        {
+          "bin": 4,
+          "mae_mean": 0.7479007892627445,
+          "n": 221,
+          "std_mean": 0.713042857543356
+        }
+      ],
+      "conformal_coverage_90": 0.8506787330316742,
+      "delta_mae": -0.2381134156684963,
+      "gnn_mae": null,
+      "gnn_r2": null,
+      "gnn_rmse": null,
+      "lgb_mae": 0.6600793918729932,
+      "lgb_r2": 0.39716555043935353,
+      "lgb_rmse": 0.850985948034092,
+      "model_mae": 0.6535079719556927,
+      "model_r2": 0.406094302100099,
+      "model_rmse": 0.8446603411966888,
+      "model_type": "CrossConformalRegressor",
+      "n_test": 884,
+      "n_train": 3874,
+      "rf_mae": 0.7118023532459528,
+      "rf_r2": 0.3325085918672691,
+      "rf_rmse": 0.8954600138620646,
+      "uncertainty_mean_std": 0.6908811914094315
+    },
+    "A2A": {
+      "baseline_mae": 1.0653788713380952,
+      "baseline_r2": -0.008888683719062263,
+      "baseline_rmse": 1.2669229154943216,
+      "calibration_quartiles": [
+        {
+          "bin": 1,
+          "mae_mean": 0.49008363260321813,
+          "n": 310,
+          "std_mean": 0.6408138983178833
+        },
+        {
+          "bin": 2,
+          "mae_mean": 0.4894807346364231,
+          "n": 309,
+          "std_mean": 0.6444034794053499
+        },
+        {
+          "bin": 3,
+          "mae_mean": 0.5562419961793917,
+          "n": 309,
+          "std_mean": 0.6489152177269634
+        },
+        {
+          "bin": 4,
+          "mae_mean": 0.6274968697942838,
+          "n": 309,
+          "std_mean": 0.6676563284290442
+        }
+      ],
+      "conformal_coverage_90": 0.8843977364591754,
+      "delta_mae": -0.5245940833869892,
+      "gnn_mae": null,
+      "gnn_r2": null,
+      "gnn_rmse": null,
+      "lgb_mae": 0.5436534327059541,
+      "lgb_r2": 0.6866815776424946,
+      "lgb_rmse": 0.7060273608343274,
+      "model_mae": 0.540784787951106,
+      "model_r2": 0.691708609359762,
+      "model_rmse": 0.7003405364979567,
+      "model_type": "CrossConformalRegressor",
+      "n_test": 1237,
+      "n_train": 4962,
+      "rf_mae": 0.5942056265952312,
+      "rf_r2": 0.6433950099346133,
+      "rf_rmse": 0.7532207475208329,
+      "uncertainty_mean_std": 0.650439443312048
+    },
+    "A2B": {
+      "baseline_mae": 0.9943065791642827,
+      "baseline_r2": -0.004067302013742058,
+      "baseline_rmse": 1.2673171637543288,
+      "calibration_quartiles": [
+        {
+          "bin": 1,
+          "mae_mean": 0.4416174237893499,
+          "n": 101,
+          "std_mean": 0.5517250854764034
+        },
+        {
+          "bin": 2,
+          "mae_mean": 0.4802472603564185,
+          "n": 101,
+          "std_mean": 0.5594340294008492
+        },
+        {
+          "bin": 3,
+          "mae_mean": 0.6292542595982227,
+          "n": 101,
+          "std_mean": 0.5700610548651557
+        },
+        {
+          "bin": 4,
+          "mae_mean": 0.6975760594353546,
+          "n": 101,
+          "std_mean": 0.6024191791895241
+        }
+      ],
+      "conformal_coverage_90": 0.8193069306930693,
+      "delta_mae": -0.43213282836944633,
+      "gnn_mae": null,
+      "gnn_r2": null,
+      "gnn_rmse": null,
+      "lgb_mae": 0.559907045072279,
+      "lgb_r2": 0.668782860369306,
+      "lgb_rmse": 0.727880870401336,
+      "model_mae": 0.5621737507948363,
+      "model_r2": 0.6732987627095801,
+      "model_rmse": 0.7229017801633859,
+      "model_type": "CrossConformalRegressor",
+      "n_test": 404,
+      "n_train": 2042,
+      "rf_mae": 0.6085771717661266,
+      "rf_r2": 0.6222331577309401,
+      "rf_rmse": 0.7773486032406113,
+      "uncertainty_mean_std": 0.5709098372329832
+    },
+    "A3": {
+      "baseline_mae": 1.0505999590690551,
+      "baseline_r2": -0.002862573361475551,
+      "baseline_rmse": 1.257439335655898,
+      "calibration_quartiles": [
+        {
+          "bin": 1,
+          "mae_mean": 0.5630216970020985,
+          "n": 241,
+          "std_mean": 0.6360922060726187
+        },
+        {
+          "bin": 2,
+          "mae_mean": 0.6261534864896274,
+          "n": 240,
+          "std_mean": 0.6427128654120541
+        },
+        {
+          "bin": 3,
+          "mae_mean": 0.6477035250886158,
+          "n": 240,
+          "std_mean": 0.6499212058240278
+        },
+        {
+          "bin": 4,
+          "mae_mean": 0.6047874551393086,
+          "n": 240,
+          "std_mean": 0.6703822374102314
+        }
+      ],
+      "conformal_coverage_90": 0.8470343392299687,
+      "delta_mae": -0.4402327363950508,
+      "gnn_mae": null,
+      "gnn_r2": null,
+      "gnn_rmse": null,
+      "lgb_mae": 0.6084647858218928,
+      "lgb_r2": 0.6066629841709466,
+      "lgb_rmse": 0.7874966941673415,
+      "model_mae": 0.6103672226740043,
+      "model_r2": 0.5987163214204488,
+      "model_rmse": 0.7954118889807178,
+      "model_type": "CrossConformalRegressor",
+      "n_test": 961,
+      "n_train": 4088,
+      "rf_mae": 0.6631900333273847,
+      "rf_r2": 0.5524334142644325,
+      "rf_rmse": 0.8400306994120547,
+      "uncertainty_mean_std": 0.6497628883856569
+    }
+  },
+  "run_id": "ADENO_20260714_160554_4eae22",
+  "split": {
+    "random_state": 42,
+    "test_size": 0.2
+  }
+}

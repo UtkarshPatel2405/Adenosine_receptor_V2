@@ -1,0 +1,118 @@
+[
+  {
+    "result": {
+      "best_target": "A1",
+      "in_database": false,
+      "pains_alert": false,
+      "predictions": {
+        "A1": 6.847624492645264,
+        "A2A": 6.53724889755249,
+        "A2B": 6.593432998657226,
+        "A3": 6.817718982696533
+      },
+      "selectivity_score": 0.029905509948730646,
+      "source": "model",
+      "target_hits": [
+        "A1",
+        "A2A",
+        "A2B",
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.17333956139941958,
+        "A2A": 0.08198191408252369,
+        "A2B": 0.1395793558093904,
+        "A3": 0.10349214649409964
+      }
+    },
+    "smiles": "c1ccc2[nH]ccc2c1"
+  },
+  {
+    "result": {
+      "best_target": "A1",
+      "in_database": false,
+      "pains_alert": false,
+      "predictions": {
+        "A1": 7.654920673370361,
+        "A2A": 6.380056953430175,
+        "A2B": 6.662339115142823,
+        "A3": 7.0391816139221195
+      },
+      "selectivity_score": 0.6157390594482415,
+      "source": "model",
+      "target_hits": [
+        "A1",
+        "A2A",
+        "A2B",
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.27102372610775566,
+        "A2A": 0.19355165131055585,
+        "A2B": 0.1519389483524138,
+        "A3": 0.1780691779519626
+      }
+    },
+    "smiles": "CCN(CC)CCc1ccc2[nH]ccc2c1"
+  },
+  {
+    "result": {
+      "best_target": "A1",
+      "in_database": false,
+      "pains_alert": false,
+      "predictions": {
+        "A1": 7.2549175262451175,
+        "A2A": 6.714967250823975,
+        "A2B": 7.080174827575684,
+        "A3": 6.98787031173706
+      },
+      "selectivity_score": 0.1747426986694336,
+      "source": "model",
+      "target_hits": [
+        "A1",
+        "A2A",
+        "A2B",
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.5656012802046669,
+        "A2A": 0.1869702875812161,
+        "A2B": 0.14288538527153422,
+        "A3": 0.18373726040797927
+      }
+    },
+    "smiles": "CCOc1ccc2nc(S(N)(=O)=O)sc2c1"
+  },
+  {
+    "result": {
+      "best_target": "A1",
+      "in_database": false,
+      "pains_alert": false,
+      "predictions": {
+        "A1": 7.5329913139343265,
+        "A2A": 6.456925678253174,
+        "A2B": 6.637939071655273,
+        "A3": 6.634739685058594
+      },
+      "selectivity_score": 0.8950522422790534,
+      "source": "model",
+      "target_hits": [
+        "A1",
+        "A2A",
+        "A2B",
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.2074943404816039,
+        "A2A": 0.08795395753867596,
+        "A2B": 0.2006808319282079,
+        "A3": 0.09223492080065884
+      }
+    },
+    "smiles": "CC(=O)Nc1ccc(O)cc1"
+  }
+]

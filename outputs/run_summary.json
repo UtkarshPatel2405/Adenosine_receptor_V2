@@ -1,0 +1,46 @@
+{
+  "artifacts_expected": {
+    "db_lookup": "data/processed/db_lookup.json",
+    "features_test": "data/processed/features_test.pkl",
+    "features_train": "data/processed/features_train.pkl",
+    "models": [
+      "models/xgb_A1_ens.pkl",
+      "models/xgb_A2A_ens.pkl",
+      "models/xgb_A2B_ens.pkl",
+      "models/xgb_A3_ens.pkl",
+      "models/xgb_global_ens.pkl"
+    ],
+    "scaler": "models/scaler.pkl",
+    "train_fps": "data/processed/train_fps.pkl"
+  },
+  "data_path": "data/raw/AR_all_unique_parents_with_smiles.csv",
+  "features": {
+    "X_test_shape": [
+      1583,
+      2055
+    ],
+    "X_train_shape": [
+      6332,
+      2055
+    ],
+    "fingerprint_bits": 2048,
+    "n_descriptors": 7
+  },
+  "mode": "standard",
+  "n_lookup_smiles": 7915,
+  "n_rows_clean": 7915,
+  "sanity": {
+    "desc_mean": -2.7540454361485445e-09,
+    "fp_unique_values": [
+      0.0,
+      1.0
+    ]
+  },
+  "split": {
+    "n_test": 1583,
+    "n_train": 6332,
+    "random_state": 42,
+    "test_size": 0.2
+  },
+  "started_at": "2026-05-01T09:44:29"
+}

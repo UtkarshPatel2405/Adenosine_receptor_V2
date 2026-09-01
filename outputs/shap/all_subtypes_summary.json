@@ -1,0 +1,15 @@
+{
+  "n_subtypes_analyzed": 4,
+  "subtypes": [
+    "A1",
+    "A2A",
+    "A2B",
+    "A3"
+  ],
+  "sanity_summary": {
+    "A1": "PASS",
+    "A2A": "PASS",
+    "A2B": "WARNING",
+    "A3": "WARNING"
+  }
+}

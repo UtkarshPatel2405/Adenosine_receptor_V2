@@ -1,7 +1,9 @@
-# Data tracked by DVC
-*.pkl
+# Data tracked by DVC / Large tables
 *.csv
-*.json
 *.parquet
 *.xlsx
 !processed/db_lookup_train.json
+!processed/db_lookup.json
+!processed/train_smiles.pkl
+!processed/train_fps.pkl
+

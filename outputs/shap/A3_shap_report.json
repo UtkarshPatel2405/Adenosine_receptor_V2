@@ -1,0 +1,61 @@
+{
+  "subtype": "A3",
+  "mode": "precise",
+  "top_features": [
+    {
+      "rank": 1,
+      "feature": "Morgan_FP_708",
+      "mean_abs_shap": 0.4157765507698059
+    },
+    {
+      "rank": 2,
+      "feature": "Morgan_FP_1730",
+      "mean_abs_shap": 0.13422328233718872
+    },
+    {
+      "rank": 3,
+      "feature": "Morgan_FP_1071",
+      "mean_abs_shap": 0.1277296096086502
+    },
+    {
+      "rank": 4,
+      "feature": "MACCS_151",
+      "mean_abs_shap": 0.06480646878480911
+    },
+    {
+      "rank": 5,
+      "feature": "Morgan_FP_1457",
+      "mean_abs_shap": 0.06028342992067337
+    },
+    {
+      "rank": 6,
+      "feature": "Morgan_FP_168",
+      "mean_abs_shap": 0.05984952673316002
+    },
+    {
+      "rank": 7,
+      "feature": "Morgan_FP_933",
+      "mean_abs_shap": 0.05175034701824188
+    },
+    {
+      "rank": 8,
+      "feature": "MACCS_100",
+      "mean_abs_shap": 0.04837484657764435
+    },
+    {
+      "rank": 9,
+      "feature": "BalabanJ",
+      "mean_abs_shap": 0.04656319320201874
+    },
+    {
+      "rank": 10,
+      "feature": "Morgan_FP_157",
+      "mean_abs_shap": 0.04530426859855652
+    }
+  ],
+  "sanity_check": {
+    "status": "WARNING",
+    "message": "Top features are dominated by isolated fingerprint bits rather than global physicochemical descriptors. Verify model is not learning noise.",
+    "expected_features_found": []
+  }
+}

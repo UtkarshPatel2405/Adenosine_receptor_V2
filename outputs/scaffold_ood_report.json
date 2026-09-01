@@ -1,0 +1,24 @@
+{
+  "data_path": "data/raw/AR_all_unique_parents_with_smiles.csv",
+  "mode": "professor",
+  "n_test": 1583,
+  "n_train": 6332,
+  "ood_by_scaffold": {
+    "novel_scaffold": {
+      "mae": 0.4321288452329946,
+      "n": 1261,
+      "r2": 0.5972748824135035,
+      "rmse": 0.588354336816491
+    },
+    "seen_scaffold": {
+      "mae": 0.5392560269373544,
+      "n": 322,
+      "r2": 0.387975165697802,
+      "rmse": 0.7435100199055171
+    }
+  },
+  "split": {
+    "random_state": 42,
+    "test_size": 0.2
+  }
+}

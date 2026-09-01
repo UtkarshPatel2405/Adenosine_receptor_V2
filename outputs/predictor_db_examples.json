@@ -1,0 +1,132 @@
+[
+  {
+    "result": {
+      "best_target": "A2A",
+      "in_database": true,
+      "pains_alert": false,
+      "predictions": {
+        "A1": null,
+        "A2A": 11.0,
+        "A2B": null,
+        "A3": null
+      },
+      "selectivity_score": 0.0,
+      "source": "database",
+      "target_hits": [
+        "A2A"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 0.0
+      }
+    },
+    "smiles": "CCn1c(/N=C/c2ccc(Br)cc2)c(C#N)sc1=S"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "in_database": true,
+      "pains_alert": false,
+      "predictions": {
+        "A1": null,
+        "A2A": null,
+        "A2B": null,
+        "A3": 11.0
+      },
+      "selectivity_score": 0.0,
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 0.0
+      }
+    },
+    "smiles": "Cn1cc2c(nc(NC(=O)Nc3ccncc3)n3nc(-c4ccco4)nc23)n1"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "in_database": true,
+      "pains_alert": false,
+      "predictions": {
+        "A1": null,
+        "A2A": null,
+        "A2B": null,
+        "A3": 11.0
+      },
+      "selectivity_score": 0.0,
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 0.0
+      }
+    },
+    "smiles": "Cn1cc2c(nc(NC(=O)N[n+]3ccccc3)n3nc(-c4ccco4)nc23)n1"
+  },
+  {
+    "result": {
+      "best_target": "A3",
+      "in_database": true,
+      "pains_alert": false,
+      "predictions": {
+        "A1": null,
+        "A2A": null,
+        "A2B": null,
+        "A3": 11.0
+      },
+      "selectivity_score": 0.0,
+      "source": "database",
+      "target_hits": [
+        "A3"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 0.0
+      }
+    },
+    "smiles": "Cl.Cn1cc2c(nc(NC(=O)Nc3ccncc3)n3nc(-c4ccco4)nc23)n1"
+  },
+  {
+    "result": {
+      "best_target": "A2A",
+      "in_database": true,
+      "pains_alert": false,
+      "predictions": {
+        "A1": null,
+        "A2A": 10.8,
+        "A2B": null,
+        "A3": null
+      },
+      "selectivity_score": 0.0,
+      "source": "database",
+      "target_hits": [
+        "A2A"
+      ],
+      "toxicophore_alert": false,
+      "uncertainty": {
+        "A1": 0.0,
+        "A2A": 0.0,
+        "A2B": 0.0,
+        "A3": 0.0
+      }
+    },
+    "smiles": "C=CCn1c(=S)sc2c1ncn1nc(-c3ccco3)nc21"
+  }
+]

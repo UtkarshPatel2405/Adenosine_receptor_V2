@@ -1,0 +1,191 @@
+{
+  "subtype": "A2B",
+  "n_compounds": 1725,
+  "pchembl_stats": {
+    "mean": 7.524869565217391,
+    "std": 0.7561812893791127,
+    "min": 6.0,
+    "max": 10.08,
+    "median": 7.52
+  },
+  "scaffold_diversity": {
+    "n_unique_scaffolds": 543,
+    "diversity_ratio": 0.31478260869565217,
+    "top_scaffold_sizes": {
+      "O=C(COc1ccc(-c2cc3[nH]c(=O)[nH]c(=O)c3[nH]2)cc1)Nc1ccccc1": 71,
+      "O=C(c1nc(NCc2cccnc2)nc2ccsc12)N1CCCC1": 70,
+      "O=C(c1nc(NCc2cccnc2)nc2ccsc12)N1CCC1": 54,
+      "O=c1[nH]c(=O)c2nc(-c3ccccc3)[nH]c2[nH]1": 46,
+      "O=C(COc1ccc(-c2cc3[nH]c(=O)[nH]c(=O)c3[nH]2)cc1)N1CCN(c2ccccc2)CC1": 38
+    }
+  },
+  "standard_type_breakdown": {
+    "KI": 1169,
+    "IC50": 488,
+    "EC50": 58,
+    "KD": 10
+  },
+  "n_activity_cliffs": 42,
+  "activity_cliffs": [
+    {
+      "compound_1_smiles": "CC(C)(NC(=O)COc1ccc2[nH]c(=O)c(-c3nccs3)c(CCc3ccccc3)c2c1)c1ccccc1",
+      "compound_1_pchembl": 8.89,
+      "compound_2_smiles": "CC(C)(NC(=O)COc1ccc2[nH]c(=O)c(-c3nccs3)c(COc3ccccc3)c2c1)c1ccccc1",
+      "compound_2_pchembl": 7.16,
+      "tanimoto_similarity": 0.8169014084507042,
+      "pchembl_difference": 1.7300000000000004
+    },
+    {
+      "compound_1_smiles": "CC(C)Cn1c(=O)c2[nH]c(-c3cnn(Cc4cccc(C(F)(F)F)c4)c3)nc2n(C)c1=O",
+      "compound_1_pchembl": 6.7,
+      "compound_2_smiles": "CCn1c(=O)c2[nH]c(-c3cnn(Cc4cccc(C(F)(F)F)c4)c3)nc2n(C)c1=O",
+      "compound_2_pchembl": 8.22,
+      "tanimoto_similarity": 0.8333333333333334,
+      "pchembl_difference": 1.5200000000000005
+    },
+    {
+      "compound_1_smiles": "CC1=C(C(=O)OC(C)C(F)(F)F)C(c2ccco2)n2c(nc3ccccc32)N1",
+      "compound_1_pchembl": 7.54,
+      "compound_2_smiles": "CC1=C(C(=O)OC(C)C)[C@@H](c2ccco2)n2c(nc3ccccc32)N1",
+      "compound_2_pchembl": 9.05,
+      "tanimoto_similarity": 0.8103448275862069,
+      "pchembl_difference": 1.5100000000000007
+    },
+    {
+      "compound_1_smiles": "CC1=C(C(=O)OC(C)C)C(c2ccco2)n2c(nc3cc(Br)ccc32)N1",
+      "compound_1_pchembl": 8.28,
+      "compound_2_smiles": "CC1=C(C(=O)OC(C)C)C(c2ccco2)n2c(nc3ccc(Br)cc32)N1",
+      "compound_2_pchembl": 6.56,
+      "tanimoto_similarity": 0.864406779661017,
+      "pchembl_difference": 1.7199999999999998
+    },
+    {
+      "compound_1_smiles": "CC1=C(C(=O)OC(C)C)C(c2ccco2)n2c(nc3cc(Cl)c(Cl)cc32)N1",
+      "compound_1_pchembl": 6.93,
+      "compound_2_smiles": "CC1=C(C(=O)OC(C)C)[C@@H](c2ccco2)n2c(nc3cc(Cl)ccc32)N1",
+      "compound_2_pchembl": 8.69,
+      "tanimoto_similarity": 0.8305084745762712,
+      "pchembl_difference": 1.7599999999999998
+    },
+    {
+      "compound_1_smiles": "CC1=C(C(=O)OC(C)C)C(c2ccco2)n2c(nc3ccc(Br)cc32)N1",
+      "compound_1_pchembl": 6.56,
+      "compound_2_smiles": "CC1=C(C(=O)OC(C)C)[C@@H](c2ccco2)n2c(nc3cc(Br)ccc32)N1",
+      "compound_2_pchembl": 8.53,
+      "tanimoto_similarity": 0.864406779661017,
+      "pchembl_difference": 1.9699999999999998
+    },
+    {
+      "compound_1_smiles": "CCCCn1c(=O)[nH]c2[nH]c(-c3ccc(OCC(=O)O)cc3)nc2c1=O",
+      "compound_1_pchembl": 7.97,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2[nH]c(-c3ccc(OCC(=O)O)cc3)nc2c1=O",
+      "compound_2_pchembl": 6.43,
+      "tanimoto_similarity": 0.8846153846153846,
+      "pchembl_difference": 1.54
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2[nH]c(-c3ccc(OCC(=O)O)cc3)nc2c1=O",
+      "compound_1_pchembl": 6.43,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2[nH]c(-c3ccc(OCC(=O)OC)cc3)nc2c1=O",
+      "compound_2_pchembl": 8.43,
+      "tanimoto_similarity": 0.8148148148148148,
+      "pchembl_difference": 2.0
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(C)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 7.32,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(c5ccccc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 9.19,
+      "tanimoto_similarity": 0.8103448275862069,
+      "pchembl_difference": 1.8699999999999992
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(Br)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 9.81,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C(=O)O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 7.01,
+      "tanimoto_similarity": 0.8088235294117647,
+      "pchembl_difference": 2.8000000000000007
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C(=O)O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 7.01,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 9.07,
+      "tanimoto_similarity": 0.8208955223880597,
+      "pchembl_difference": 2.0600000000000005
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C(=O)O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 7.01,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(Cl)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 9.41,
+      "tanimoto_similarity": 0.8208955223880597,
+      "pchembl_difference": 2.4000000000000004
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C(=O)O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 7.01,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(F)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 9.22,
+      "tanimoto_similarity": 0.8088235294117647,
+      "pchembl_difference": 2.210000000000001
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccc(C(=O)O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 7.01,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(Cc5ccccc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 8.88,
+      "tanimoto_similarity": 0.8461538461538461,
+      "pchembl_difference": 1.870000000000001
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(c5ccc(Br)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_1_pchembl": 10.08,
+      "compound_2_smiles": "CCCn1c(=O)[nH]c2nc(-c3ccc(S(=O)(=O)N4CCN(c5ccc(O)cc5)CC4)cc3)[nH]c2c1=O",
+      "compound_2_pchembl": 8.37,
+      "tanimoto_similarity": 0.8387096774193549,
+      "pchembl_difference": 1.7100000000000009
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)c2[nH]c(-c3ccc(OCC(=O)NCCO)cc3)cc2n(C)c1=O",
+      "compound_1_pchembl": 8.92,
+      "compound_2_smiles": "[3H]C([3H])([3H])C([3H])([3H])Cn1c(=O)c2[nH]c(-c3ccc(OCC(=O)NCCO)cc3)cc2n(C)c1=O",
+      "compound_2_pchembl": 7.22,
+      "tanimoto_similarity": 0.8095238095238095,
+      "pchembl_difference": 1.7000000000000002
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)c2[nH]c(-c3ccc(OCC(=O)Nc4ccc(Br)cc4)cc3)cc2n(CCC)c1=O",
+      "compound_1_pchembl": 8.66,
+      "compound_2_smiles": "CCCn1c(=O)c2[nH]c(-c3ccc(OCC(=O)Nc4ccc([N+](C)(C)C)cc4)cc3)cc2n(CCC)c1=O",
+      "compound_2_pchembl": 7.04,
+      "tanimoto_similarity": 0.8125,
+      "pchembl_difference": 1.62
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)c2[nH]c(-c3cnn(CC#Cc4cccc(C(=O)O)c4)c3)nc2n(CC)c1=O",
+      "compound_1_pchembl": 6.72,
+      "compound_2_smiles": "CCCn1c(=O)c2[nH]c(-c3cnn(CC#Cc4cccc(C(=O)O)c4)c3)nc2n(CCC)c1=O",
+      "compound_2_pchembl": 8.74,
+      "tanimoto_similarity": 0.9545454545454546,
+      "pchembl_difference": 2.0200000000000005
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)c2nc(-c3cc(OCC(=O)Nc4ccc(C)cc4)nn3C)[nH]c2n(CCC)c1=O",
+      "compound_1_pchembl": 7.72,
+      "compound_2_smiles": "CCCn1c(=O)c2nc(-c3cc(OCC(=O)Nc4ccc(C)cn4)nn3C)[nH]c2n(CCC)c1=O",
+      "compound_2_pchembl": 6.0,
+      "tanimoto_similarity": 0.8235294117647058,
+      "pchembl_difference": 1.7199999999999998
+    },
+    {
+      "compound_1_smiles": "CCCn1c(=O)c2nc(-c3ccc(OCC(=O)Nc4ccc(I)cc4)cc3)[nH]c2n(CCC)c1=O",
+      "compound_1_pchembl": 8.67,
+      "compound_2_smiles": "CCCn1c(=O)c2nc(-c3ccc(OCC(=O)Nc4ccc(I)cc4)nc3)[nH]c2n(CCC)c1=O",
+      "compound_2_pchembl": 6.97,
+      "tanimoto_similarity": 0.803030303030303,
+      "pchembl_difference": 1.7000000000000002
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "n_compounds": 9589,
+  "pchembl_stats": {
+    "mean": 7.708343935759726,
+    "std": 0.9197434600460119,
+    "min": 6.0,
+    "max": 11.0,
+    "median": 7.63
+  },
+  "scaffold_diversity": {
+    "n_unique_scaffolds": 3343,
+    "diversity_ratio": 0.3486286369798728,
+    "top_scaffold_sizes": {
+      "c1ncc2ncn(C3CCCO3)c2n1": 112,
+      "O=C(c1nc(NCc2cccnc2)nc2ccsc12)N1CCCC1": 108,
+      "c1ccc2c(c1)ncn1nc(C3CCCN(c4cn[nH]c4)C3)nc21": 105,
+      "O=C(c1nc(NCc2cccnc2)nc2ccsc12)N1CCC1": 100,
+      "O=C(Nc1ccccc1)Nc1nc2n[nH]cc2c2nc(-c3ccco3)nn12": 95
+    }
+  },
+  "standard_type_breakdown": {
+    "KI": 7391,
+    "IC50": 1694,
+    "EC50": 380,
+    "KD": 124
+  },
+  "target_subtype_breakdown": {
+    "A2A": 3518,
+    "A3": 2825,
+    "A2B": 1725,
+    "A1": 1521
+  }
+}
