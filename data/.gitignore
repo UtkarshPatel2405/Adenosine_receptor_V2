@@ -1,9 +1,12 @@
 # Data tracked by DVC / Large tables
-*.csv
 *.parquet
 *.xlsx
+!raw/AR_all_unique_parents_with_smiles.csv
 !processed/db_lookup_train.json
 !processed/db_lookup.json
+!processed/benchmark_scaffold_test_set.csv
+!processed/global_split.json
 !processed/train_smiles.pkl
 !processed/train_fps.pkl
+
 
