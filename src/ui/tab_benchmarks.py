@@ -308,8 +308,12 @@ def render_tab_benchmarks() -> None:
             dataset_downloads = [
                 ("AR_all_unique_parents_with_smiles.csv", Path(RAW_DATA_DIR) / "AR_all_unique_parents_with_smiles.csv", "Raw ChEMBL Parents (CSV - 2.5 MB)", "text/csv"),
                 ("benchmark_scaffold_test_set.csv", Path(PROCESSED_DATA_DIR) / "benchmark_scaffold_test_set.csv", "Benchmark Scaffold Test Set (CSV - 1,922 cmpds)", "text/csv"),
-                ("GPCRdb_A1.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A1.xlsx", "GPCRdb A1 Crystal Dataset (XLSX)", "application/octet-stream"),
-                ("GPCRdb_A2A.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A2A.xlsx", "GPCRdb A2A Crystal Dataset (XLSX)", "application/octet-stream"),
+                ("1_get_entries_ARs", Path(RAW_DATA_DIR) / "1_get_entries_ARs", "ChEMBL Query Protocol (Script - 20 KB)", "text/plain"),
+                ("2_add_smiles_to_db_new", Path(RAW_DATA_DIR) / "2_add_smiles_to_db_new", "SMILES Standardization Protocol (Script - 8 KB)", "text/plain"),
+                ("GPCRdb_A1.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A1.xlsx", "GPCRdb A1 Crystal Dataset (XLSX)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                ("GPCRdb_A2A.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A2A.xlsx", "GPCRdb A2A Crystal Dataset (XLSX)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                ("GPCRdb_A2B.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A2B.xlsx", "GPCRdb A2B Crystal Dataset (XLSX)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                ("GPCRdb_A3.xlsx", Path(RAW_DATA_DIR) / "GPCRdb_A3.xlsx", "GPCRdb A3 Crystal Dataset (XLSX)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             ]
             for fn, fp, label, mime_type in dataset_downloads:
                 if fp.exists():
