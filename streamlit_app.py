@@ -29,17 +29,64 @@ from src.ui.tab_gallery import render_tab_gallery
 st.set_page_config(page_title="Adenosine Receptor Profiler", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
 apply_custom_styles()
 
-# Sidebar: Platform Information & Methodology Badges
-st.sidebar.markdown("### 🧬 Adenosine Profiler")
-st.sidebar.markdown("<div style='font-size:0.8rem;color:#94a3b8;margin-bottom:1rem'>State-of-the-Art GPCR Selectivity & Conformal AI Platform</div>", unsafe_allow_html=True)
+# Executive Main Body Hero Header with Glowing Methodology Chips
+st.markdown("""
+<div style="margin-bottom:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.8rem;border-bottom:1px solid rgba(56,189,248,0.2);padding-bottom:1rem">
+        <div>
+            <div style="display:flex;align-items:center;gap:0.6rem">
+                <span style="font-size:2.2rem">🧬</span>
+                <span style="font-family:'Outfit',sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(135deg, #f8fafc, #38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+                    Adenosine Receptor Profiler
+                </span>
+                <span class="badge-pill badge-cyan" style="font-size:0.75rem;padding:0.2rem 0.6rem">v2.4.0 Production</span>
+            </div>
+            <div style="font-size:0.92rem;color:#94a3b8;margin-top:0.2rem">
+                Industrial CADD & Conformal AI Platform for Multi-Target 7-TM GPCR Selectivity & Drug Discovery
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+            <span class="badge-pill badge-green">✓ 4 GPCR Subtypes</span>
+            <span class="badge-pill badge-purple">🛡️ 90% Conformal Validity</span>
+            <span class="badge-pill badge-cyan">💎 GPCRdb PDB Co-Crystals</span>
+        </div>
+    </div>
+    <div class="hero-strip" style="margin-top:0.8rem">
+        <div class="hero-chip">
+            <div class="chip-label">Covariance Regularization</div>
+            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">4-Subtype Manifold</div>
+        </div>
+        <div class="hero-chip">
+            <div class="chip-label">Pharmacological MoA</div>
+            <div class="chip-value" style="color:var(--green);font-size:1.05rem">Agonist vs Antagonist</div>
+        </div>
+        <div class="hero-chip">
+            <div class="chip-label">Adaptive Conformal</div>
+            <div class="chip-value" style="color:var(--purple);font-size:1.05rem">90% Finite-Sample</div>
+        </div>
+        <div class="hero-chip">
+            <div class="chip-label">OECD Principle 3 AD</div>
+            <div class="chip-value" style="color:var(--amber);font-size:1.05rem">Tanimoto + Physicochem</div>
+        </div>
+        <div class="hero-chip">
+            <div class="chip-label">Authentic Structures</div>
+            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">GPCRdb.org Verified</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Sidebar: Quick Navigation & Platform Info
+st.sidebar.markdown("### 🧬 Platform Navigation")
+st.sidebar.markdown("<div style='font-size:0.8rem;color:#94a3b8;margin-bottom:1rem'>Select preset drug standards or configure virtual screening parameters.</div>", unsafe_allow_html=True)
 st.sidebar.markdown("""
-<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:0.75rem;font-size:0.75rem;color:#cbd5e1;line-height:1.5">
-    <b>Methodology Highlights:</b><br>
-    • <b>4-Subtype Covariance</b>: Multi-target 7-TM GPCR manifold<br>
-    • <b>Mode of Action (MoA)</b>: Full/Partial Agonist vs Antagonist<br>
-    • <b>Adaptive Conformal</b>: 90% finite-sample uncertainty bounds<br>
-    • <b>OECD Principle 3 AD</b>: Tanimoto & physicochemical domain gates<br>
-    • <b>Authentic PDBs</b>: Verified GPCRdb.org crystallographic records
+<div class="cadd-card" style="padding:0.9rem;font-size:0.75rem;line-height:1.5">
+    <b>Quick Reference Standards:</b><br>
+    • <b>CGS-21680</b>: A2A Agonist (Ki = 5.7 nM)<br>
+    • <b>ZM-241385</b>: A2A Antagonist (Ki = 1.6 nM)<br>
+    • <b>PSB-603</b>: A2B Antagonist (Ki = 0.55 nM)<br>
+    • <b>CCPA</b>: A1 Selective Agonist (Ki = 0.83 nM)<br>
+    • <b>IB-MECA</b>: A3 Agonist (Ki = 1.1 nM)
 </div>
 """, unsafe_allow_html=True)
 

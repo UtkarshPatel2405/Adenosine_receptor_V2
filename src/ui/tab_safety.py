@@ -16,32 +16,99 @@ def render_tab_safety(data: dict) -> None:
     """, unsafe_allow_html=True)
 
     # 1. Adenosine Safety Panel (Pillar 3)
-    st.markdown("<div style='font-size:0.85rem;font-weight:700;color:#f8fafc;margin-bottom:0.4rem'>Adenosine-Specific Target Liabilities:</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.88rem;font-weight:700;color:#f8fafc;margin-bottom:0.5rem'>Adenosine-Specific Target Liabilities:</div>", unsafe_allow_html=True)
     s_cols = st.columns(3)
+    
     with s_cols[0]:
-        brady = safe.get("a1_bradycardia_risk", "Low")
-        b_col = "var(--red)" if "HIGH" in brady else "var(--amber)" if "MODERATE" in brady else "var(--green)"
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">A1 Bradycardia / AV Block</div><div class="kpi-value" style="color:{b_col};font-size:0.9rem">{brady}</div></div>', unsafe_allow_html=True)
+        brady = safe.get("a1_bradycardia_risk", "Low Risk")
+        b_col = "var(--red)" if "HIGH" in brady.upper() else "var(--amber)" if "MODERATE" in brady.upper() else "var(--green)"
+        b_badge = "badge-red" if "HIGH" in brady.upper() else "badge-amber" if "MODERATE" in brady.upper() else "badge-green"
+        st.markdown(f"""
+        <div class="target-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+                <span style="font-weight:700;color:#f8fafc">A1 Cardiac Liability</span>
+                <span class="badge-pill {b_badge}">{brady}</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">Bradycardia & AV Nodal Blockade</div>
+            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:0.35rem">Threshold: pChEMBL(A1) ≥ 7.0</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     with s_cols[1]:
-        mast = safe.get("a3_mast_cell_risk", "Low")
-        m_col = "var(--red)" if "HIGH" in mast else "var(--amber)" if "MODERATE" in mast else "var(--green)"
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">A3 Mast Cell Degranulation</div><div class="kpi-value" style="color:{m_col};font-size:0.9rem">{mast}</div></div>', unsafe_allow_html=True)
+        mast = safe.get("a3_mast_cell_risk", "Low Risk")
+        m_col = "var(--red)" if "HIGH" in mast.upper() else "var(--amber)" if "MODERATE" in mast.upper() else "var(--green)"
+        m_badge = "badge-red" if "HIGH" in mast.upper() else "badge-amber" if "MODERATE" in mast.upper() else "badge-green"
+        st.markdown(f"""
+        <div class="target-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+                <span style="font-weight:700;color:#f8fafc">A3 Mast Cell Liability</span>
+                <span class="badge-pill {m_badge}">{mast}</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">Degranulation & Bronchoconstriction</div>
+            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:0.35rem">Threshold: pChEMBL(A3) ≥ 7.0</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     with s_cols[2]:
-        pde = safe.get("pde_cross_reactivity", "Low")
-        p_col = "var(--red)" if "HIGH" in pde else "var(--amber)" if "MODERATE" in pde else "var(--green)"
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">PDE1-10 Cross-Reactivity</div><div class="kpi-value" style="color:{p_col};font-size:0.9rem">{pde}</div></div>', unsafe_allow_html=True)
+        pde = safe.get("pde_cross_reactivity", "Low Risk")
+        p_col = "var(--red)" if "HIGH" in pde.upper() else "var(--amber)" if "MODERATE" in pde.upper() else "var(--green)"
+        p_badge = "badge-red" if "HIGH" in pde.upper() else "badge-amber" if "MODERATE" in pde.upper() else "badge-green"
+        st.markdown(f"""
+        <div class="target-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+                <span style="font-weight:700;color:#f8fafc">PDE Cross-Reactivity</span>
+                <span class="badge-pill {p_badge}">{pde}</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">Xanthine Off-Target Inhibition</div>
+            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:0.35rem">Purine / Heterocycle screening</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # 2. Pfizer CNS-MPO & Tissue Targeting (Pillar 4)
-    st.markdown("<div style='font-size:0.85rem;font-weight:700;color:#f8fafc;margin:1rem 0 0.4rem'>Pfizer CNS-MPO & Blood-Brain Barrier (BBB) Permeability:</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.88rem;font-weight:700;color:#f8fafc;margin:1.3rem 0 0.5rem'>Pfizer CNS-MPO & Blood-Brain Barrier (BBB) Permeability:</div>", unsafe_allow_html=True)
     c_cols = st.columns(3)
+    score_val = float(cns.get("cns_mpo_score", 0.0) or 0.0)
+    score_pct = max(0.0, min(100.0, score_val / 6.0 * 100.0))
+    cns_col = "var(--green)" if score_val >= 4.0 else "var(--amber)" if score_val >= 3.0 else "var(--cyan)"
+    
     with c_cols[0]:
-        score_val = cns.get("cns_mpo_score", 0.0)
-        cns_col = "var(--green)" if score_val >= 4.0 else "var(--amber)" if score_val >= 3.0 else "var(--cyan)"
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Pfizer CNS-MPO Score</div><div class="kpi-value" style="color:{cns_col};font-size:1.15rem">{score_val:.2f} / 6.00</div></div>', unsafe_allow_html=True)
-    with c_cols[1]:
-        log_bb = cns.get("log_bb", 0.0)
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Predicted LogBB (Brain/Plasma)</div><div class="kpi-value" style="color:var(--purple);font-size:1rem">{log_bb:.2f}</div></div>', unsafe_allow_html=True)
-    with c_cols[2]:
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Tissue Targeting Strategy</div><div class="kpi-value" style="color:var(--cyan);font-size:0.88rem">{cns.get("bbb_status", "N/A")}</div></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="target-card">
+            <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Pfizer CNS-MPO Score</div>
+            <div style="display:flex;align-items:baseline;gap:0.4rem;margin:0.2rem 0">
+                <span style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:800;color:{cns_col}">{score_val:.2f}</span>
+                <span style="font-size:0.85rem;color:var(--text-muted)">/ 6.00</span>
+            </div>
+            <div class="potency-bar-track">
+                <div class="potency-bar-fill" style="width:{score_pct}%;background:linear-gradient(90deg, {cns_col}88, {cns_col})"></div>
+            </div>
+            <div style="font-size:0.73rem;color:var(--text-muted);margin-top:0.25rem">≥ 4.0 = High CNS Permeability</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown(f'<div class="theory-callout"><h4>Translational Tissue Profile</h4>{cns.get("cns_class", "")}</div>', unsafe_allow_html=True)
+    with c_cols[1]:
+        log_bb = float(cns.get("log_bb", 0.0) or 0.0)
+        st.markdown(f"""
+        <div class="kpi-box">
+            <div class="kpi-label">Predicted LogBB (Brain/Plasma)</div>
+            <div class="kpi-value" style="color:var(--purple);font-size:1.4rem">{log_bb:.2f}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">> 0.3 = Rapid Brain Uptake</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c_cols[2]:
+        st.markdown(f"""
+        <div class="kpi-box">
+            <div class="kpi-label">Tissue Targeting Horizon</div>
+            <div class="kpi-value" style="color:var(--cyan);font-size:1.05rem">{cns.get("bbb_status", "Peripheral Restricted")}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem">Blood-Brain Barrier Disposition</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="theory-callout">
+        <h4>Translational Pharmacology & Safety Classification:</h4>
+        {cns.get("cns_class", "Multiparametric optimization profile calculated across CLogP, CLogD7.4, MW, TPSA, HBD, and pKa.")}
+    </div>
+    """, unsafe_allow_html=True)
+

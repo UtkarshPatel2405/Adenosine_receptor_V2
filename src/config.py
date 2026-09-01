@@ -9,6 +9,7 @@ RAW_DATA_DIR = Path(os.getenv("ADENOSINE_RAW_DATA_DIR", str(DATA_DIR / "raw")))
 PROCESSED_DATA_DIR = Path(os.getenv("ADENOSINE_PROCESSED_DATA_DIR", str(DATA_DIR / "processed")))
 MODELS_DIR = Path(os.getenv("ADENOSINE_MODELS_DIR", str(ROOT_DIR / "models")))
 OUTPUTS_DIR = Path(os.getenv("ADENOSINE_OUTPUTS_DIR", str(ROOT_DIR / "outputs")))
+FIGURES_DIR = Path(os.getenv("ADENOSINE_FIGURES_DIR", str(ROOT_DIR / "figures")))
 
 SUBTYPES = ["A1", "A2A", "A2B", "A3"]
 

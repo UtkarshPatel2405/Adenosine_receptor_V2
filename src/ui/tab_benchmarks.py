@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from src.config import OUTPUTS_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR
+from src.config import OUTPUTS_DIR, RAW_DATA_DIR, PROCESSED_DATA_DIR, FIGURES_DIR
 
 
 def _load_json(path: Path) -> dict:
@@ -33,10 +33,17 @@ def render_tab_benchmarks() -> None:
     ext_data = _load_json(OUTPUTS_DIR / "external_validation" / "external_validation_report.json")
     subtypes_dict = bm_data.get("per_subtype", {})
 
-    t_perf, t_parity, t_gnn, t_ext, t_diag, t_calib, t_shap, t_yrand, t_data = st.tabs([
-        "Scaffold Performance", "Multi-Model & Parity", "GNN Benchmark",
-        "External Validation", "Dataset Diagnostics", "Conformal Calibration",
-        "Global TreeSHAP", "Y-Randomization", "Dataset Downloads",
+    t_perf, t_parity, t_gnn, t_ext, t_diag, t_calib, t_shap, t_yrand, t_figs, t_data = st.tabs([
+        ":material/bar_chart: Scaffold Performance",
+        ":material/compare_arrows: Multi-Model & Parity",
+        ":material/hub: GNN Benchmark",
+        ":material/biotech: External Validation",
+        ":material/analytics: Dataset Diagnostics",
+        ":material/verified: Conformal Calibration",
+        ":material/psychology: Global TreeSHAP",
+        ":material/shuffle: Y-Randomization",
+        ":material/image: Publication Plates & Figures",
+        ":material/download: Dataset Downloads",
     ])
 
     # ─────────────────────────────────────────────────────────────────────────────
@@ -367,7 +374,32 @@ def render_tab_benchmarks() -> None:
         st.plotly_chart(fig_yr, width="stretch")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TAB 9: DATASET DOWNLOADS
+    # TAB 9: PUBLICATION PLATES & MANUSCRIPT FIGURES
+    # ─────────────────────────────────────────────────────────────────────────────
+    with t_figs:
+        st.markdown("<div style='font-size:0.88rem;font-weight:700;color:#f8fafc;margin-bottom:0.4rem'>Publication-Ready Manuscript Figures & Analytical Plates:</div>", unsafe_allow_html=True)
+        
+        plates = [
+            ("Figure 2: 7-TM Orthosteric Co-Crystal Ligands", "fig2_ligands.png", "High-resolution co-crystal ligand alignments in A1, A2A, A2B, and A3 receptor pockets."),
+            ("Figure 3: MAPIE Conformal Uncertainty Calibration", "fig3_conformal_calibration.png", "Finite-sample empirical coverage versus nominal 90% confidence target across out-of-distribution scaffolds."),
+            ("Figure 4: Global Dataset TreeSHAP Beeswarm Summary", "fig4_treeshap.png", "Top structural fingerprints and physicochemical descriptor drivers influencing subtype binding affinity."),
+            ("Figure 5: Multi-Model Algorithmic Benchmark Comparison", "fig5_model_comparison.png", "Comparative benchmark matrix evaluating Ridge Stacked Ensembles, XGBoost, LightGBM, Random Forest, and GNN."),
+        ]
+        
+        for title, fname, caption in plates:
+            img_path = FIGURES_DIR / fname
+            with st.container(border=True):
+                st.markdown(f"<div style='font-size:0.95rem;font-weight:700;color:var(--cyan);margin-bottom:0.2rem'>{title}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:0.8rem;color:#cbd5e1;margin-bottom:0.6rem'>{caption}</div>", unsafe_allow_html=True)
+                if img_path.exists():
+                    st.image(str(img_path), use_container_width=True)
+                    with open(img_path, "rb") as f:
+                        st.download_button(f"📥 Download High-Res {fname}", data=f.read(), file_name=fname, mime="image/png", key=f"dl_fig_{fname}")
+                else:
+                    st.info(f"Plate {fname} is available in repository figures directory.")
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # TAB 10: DATASET DOWNLOADS
     # ─────────────────────────────────────────────────────────────────────────────
     with t_data:
         st.markdown("<div style='font-size:0.88rem;font-weight:700;color:#f8fafc;margin-bottom:0.4rem'>Complete Research Datasets & Artifacts Repository:</div>", unsafe_allow_html=True)
