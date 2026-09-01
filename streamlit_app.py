@@ -45,10 +45,10 @@ st.sidebar.markdown("""
 
 # Main Navigation Tabs
 tab_single, tab_batch, tab_benchmark, tab_gallery = st.tabs([
-    "Single Molecule Profiler",
-    "Batch Virtual Screening",
-    "Model Benchmark Suite",
-    "Structural Biology Gallery",
+    ":material/science: Single Molecule Profiler",
+    ":material/batch_prediction: Batch Virtual Screening",
+    ":material/analytics: Model Benchmark Suite",
+    ":material/view_in_ar: Structural Biology Gallery",
 ])
 
 with tab_single:
@@ -103,10 +103,16 @@ with tab_single:
     if "active_result" in st.session_state:
         res = st.session_state["active_result"]
         t1, t2, t3, t4, t5, t6, t7, t8, t9, t10 = st.tabs([
-            "Overview & Ki", "2D/3D Conformer", "4-Subtype Selectivity",
-            "Mode of Action (MoA)", "Safety & CNS-MPO", "Drug-Likeness (QED)",
-            "Chemical Space", "Explainable AI (SHAP)", "Pocket Biology & GPCRdb",
-            "Provenance Audit",
+            ":material/dashboard: Overview & Ki",
+            ":material/view_in_ar: 2D/3D Conformer",
+            ":material/radar: Selectivity Radar",
+            ":material/vital_signs: Efficacy & MoA",
+            ":material/health_and_safety: Safety & CNS-MPO",
+            ":material/medication: Drug-Likeness (QED)",
+            ":material/hub: Chemical Space",
+            ":material/psychology: Explainable AI (SHAP)",
+            ":material/biotech: Pocket Biology & GPCRdb",
+            ":material/verified_user: Provenance Audit",
         ])
         with t1: render_tab_overview(res)
         with t2: render_tab_structure(res)

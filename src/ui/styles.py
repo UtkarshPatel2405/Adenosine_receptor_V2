@@ -132,6 +132,50 @@ header[data-testid="stHeader"] {
     margin-bottom: 1rem;
 }
 
+@keyframes hit-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+.target-card {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.target-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+    border-color: var(--cyan);
+}
+
+.target-card.primary-hit {
+    border-color: rgba(74, 222, 128, 0.6);
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(21, 128, 61, 0.15));
+    animation: hit-pulse 2.5s infinite;
+}
+
+/* Potency Progress Sparkline Bar */
+.potency-bar-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 9999px;
+    margin: 0.5rem 0 0.3rem;
+    overflow: hidden;
+}
+
+.potency-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Badges */
 .badge-pill {
     display: inline-flex;
@@ -142,7 +186,7 @@ header[data-testid="stHeader"] {
     font-size: 0.75rem;
     font-weight: 600;
     text-decoration: none !important;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .badge-cyan { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.35); }
