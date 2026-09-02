@@ -14,9 +14,7 @@
 
 Access the production deployment of the platform:
 
-* 🚀 **Primary Cloud Deployment:** [https://adenosinereceptorprofiler-htvm52uytmx5hg82pzslwc.streamlit.app/](https://adenosinereceptorprofiler-htvm52uytmx5hg82pzslwc.streamlit.app/)
-* 🤗 **Hugging Face Space Mirror:** `https://huggingface.co/spaces/<YOUR_USERNAME>/Adenosine_Receptor_Profiler` *(Optional Mirror)*
-* 🐳 **Docker Container Image:** `ghcr.io/utkarshpatel2405/adenosine_receptor_profiler:latest`
+* 🚀 The live web link: https://adenosinereceptorv2-b45nnjh6s9u5xrpte7wcl4.streamlit.app/
 
 ---
 
