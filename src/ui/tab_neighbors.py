@@ -4,13 +4,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from src.chem_utils import draw_2d_svg
+from src.pdb_utils import subtype_default_structure
 
 
 def render_tab_neighbors(data: dict) -> None:
     st.markdown("""
     <div class="cadd-card">
         <div class="section-title" style="color:var(--green)">Subtype-Specific Training Neighbors & Chemical Space</div>
-        <div class="section-subtitle">Ranked nearest active and reference ligands in the training dataset by Morgan Tanimoto similarity (radius=2, 2048-bit). pChEMBL ≥ 6.0 = Active hit.</div>
+        <div class="section-subtitle">Ranked nearest active and reference ligands in the training dataset by Morgan Tanimoto similarity (radius=2, 2048-bit). pChEMBL &ge; 6.0 = Active hit.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -22,12 +23,19 @@ def render_tab_neighbors(data: dict) -> None:
         st.info(f"No per-receptor training neighbors found for Human {sel_sub}.")
         return
 
+    # Resolve the canonical GPCRdb structure for this subtype (guaranteed valid link)
+    default_struct = subtype_default_structure(sel_sub)
+    default_pdb_id = default_struct["pdb_id"]
+    default_gpcrdb_link = default_struct["gpcrdb_url"]
+
     # 1. Proximity Summary KPI Strip
     max_tan = max((float(n.get("tanimoto", 0) or 0) for n in nbrs), default=0.0)
     n_actives = sum(1 for n in nbrs if (n.get("pchembl") or 0) >= 6.0)
     avg_pcm = sum((n.get("pchembl") or 0) for n in nbrs) / max(len(nbrs), 1)
+
+    # For top PDB: use neighbor's ligand-matched structure if available, else subtype canonical
     top_struct = (nbrs[0].get("real_structures") or [{}])[0] if nbrs else {}
-    top_pdb = top_struct.get("id", "N/A")
+    top_pdb = top_struct.get("id") or default_pdb_id
 
     k_cols = st.columns(4)
     with k_cols[0]:
@@ -35,7 +43,7 @@ def render_tab_neighbors(data: dict) -> None:
         tan_lbl = "High Similarity" if max_tan >= 0.7 else "Moderate Analog" if max_tan >= 0.4 else "Scaffold Hop"
         st.markdown(f'<div class="kpi-box"><div class="kpi-label">Nearest Tanimoto</div><div class="kpi-value" style="color:{tan_col};font-size:1.15rem">{max_tan*100:.1f}%</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">{tan_lbl}</div></div>', unsafe_allow_html=True)
     with k_cols[1]:
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Active Analogs (Top {len(nbrs)})</div><div class="kpi-value" style="color:var(--green);font-size:1.15rem">{n_actives} / {len(nbrs)}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">pChEMBL ≥ 6.0 (Ki ≤ 1 µM)</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Active Analogs (Top {len(nbrs)})</div><div class="kpi-value" style="color:var(--green);font-size:1.15rem">{n_actives} / {len(nbrs)}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">pChEMBL &ge; 6.0 (Ki &le; 1 &micro;M)</div></div>', unsafe_allow_html=True)
     with k_cols[2]:
         st.markdown(f'<div class="kpi-box"><div class="kpi-label">Mean Analog Affinity</div><div class="kpi-value" style="color:var(--purple);font-size:1.15rem">{avg_pcm:.2f}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">Average pChEMBL</div></div>', unsafe_allow_html=True)
     with k_cols[3]:
@@ -100,22 +108,39 @@ def render_tab_neighbors(data: dict) -> None:
     st.plotly_chart(fig, width="stretch")
 
     # 4. Detailed Tabular Breakdown with Clean Native Links
+    # KEY FIX: When a neighbor compound has no ligand-matched GPCRdb structure
+    # (Tanimoto to co-crystallized ligands too low), fall back to the canonical
+    # deposited receptor structure for the selected subtype rather than
+    # the generic GPCRdb homepage.
     st.markdown("<div style='font-size:0.85rem;font-weight:700;color:#f8fafc;margin:0.8rem 0 0.4rem'>Full Analog Assay & Co-Crystal Registry:</div>", unsafe_allow_html=True)
     rows = []
     for i, n in enumerate(nbrs, 1):
         pcm = n.get("pchembl")
-        act = n.get("activity", "—")
+        act = n.get("activity", "N/A")
         tan = n.get("tanimoto")
-        first_struct = (n.get("real_structures") or [{}])[0] if (n.get("real_structures") or []) else {}
-        struct_id = first_struct.get("id", "")
-        gpcr_link = first_struct.get("gpcrdb_url") or (f"https://gpcrdb.org/structure/{struct_id}" if struct_id else None)
+
+        # Try to get a ligand-matched structure first
+        real_structs = n.get("real_structures") or []
+        if real_structs:
+            first_struct = real_structs[0]
+            struct_id = first_struct.get("id", "")
+            gpcr_link = first_struct.get("gpcrdb_url") or (
+                f"https://gpcrdb.org/structure/{struct_id}" if struct_id else None
+            )
+        else:
+            gpcr_link = None
+
+        # Fallback: use canonical receptor structure for this subtype
+        if not gpcr_link:
+            gpcr_link = default_gpcrdb_link
+
         rows.append({
             "Rank": f"#{i}",
             "Neighbor SMILES": n.get("smiles", ""),
             "Tanimoto Similarity": f"{float(tan)*100:.1f}%" if tan is not None else "0.0%",
-            "Experimental pChEMBL": f"{float(pcm):.2f}" if pcm is not None else "—",
+            "Experimental pChEMBL": f"{float(pcm):.2f}" if pcm is not None else "N/A",
             "Activity Status": act,
-            "GPCRdb Structural Template": gpcr_link or "https://gpcrdb.org",
+            "GPCRdb Structural Template": gpcr_link,
         })
 
     st.dataframe(
@@ -126,4 +151,3 @@ def render_tab_neighbors(data: dict) -> None:
         width="stretch",
         hide_index=True,
     )
-

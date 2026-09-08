@@ -264,6 +264,52 @@ def find_gpcrdb_structure_matches(smiles: str, subtype: Optional[str] = None, mi
     return matches
 
 
+# Canonical best-resolution deposited structures per subtype.
+# Used as guaranteed fallback when a query compound is too dissimilar to any
+# co-crystallized ligand (Tanimoto < threshold), so the UI always links to a
+# real GPCRdb receptor page rather than the generic homepage.
+_SUBTYPE_CANONICAL_STRUCTURES: Dict[str, Dict[str, str]] = {
+    "A1": {
+        "pdb_id": "7LD3",
+        "gpcrdb_url": "https://gpcrdb.org/structure/7LD3",
+        "rcsb_url": "https://www.rcsb.org/structure/7LD3",
+        "label": "Human A1 (Active, 3.30 A, CCPA agonist)",
+    },
+    "A2A": {
+        "pdb_id": "5IU4",
+        "gpcrdb_url": "https://gpcrdb.org/structure/5IU4",
+        "rcsb_url": "https://www.rcsb.org/structure/5IU4",
+        "label": "Human A2A (Inactive, 1.72 A, ZMA antagonist)",
+    },
+    "A2B": {
+        "pdb_id": "8HDO",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8HDO",
+        "rcsb_url": "https://www.rcsb.org/structure/8HDO",
+        "label": "Human A2B (Active, 2.87 A, BAY 60-6583 agonist)",
+    },
+    "A3": {
+        "pdb_id": "8X17",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8X17",
+        "rcsb_url": "https://www.rcsb.org/structure/8X17",
+        "label": "Human A3 (Active, 3.19 A, Cl-IB-MECA agonist)",
+    },
+}
+
+
+def subtype_default_structure(subtype: str) -> Dict[str, str]:
+    """Return the canonical best-resolution GPCRdb structure for a given receptor subtype.
+
+    Always returns a valid dict with pdb_id, gpcrdb_url, rcsb_url, and label keys.
+    This function is the fallback when ligand-based Tanimoto matching fails.
+    """
+    return _SUBTYPE_CANONICAL_STRUCTURES.get(subtype, {
+        "pdb_id": "6D9H",
+        "gpcrdb_url": "https://gpcrdb.org/structure/6D9H",
+        "rcsb_url": "https://www.rcsb.org/structure/6D9H",
+        "label": "Human A1 (Active, 3.60 A, Adenosine agonist)",
+    })
+
+
 @lru_cache(maxsize=1024)
 def real_structure_refs(smiles: str, subtype: Optional[str] = None) -> List[Dict[str, Any]]:
     """Return verified GPCRdb structural complexes for a SMILES string."""

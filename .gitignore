@@ -44,3 +44,8 @@ uv.lock.bak
 
 # Unwanted directories
 unwanted part/
+
+# Large model and intermediate feature caches (>100MB)
+data/processed/features_*.pkl
+models/precise/rf_*.pkl
+

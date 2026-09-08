@@ -20,6 +20,8 @@ SUBTYPE_MAP = {
     "A1": "A1", "A2A": "A2A", "A2B": "A2B", "A3": "A3",
 }
 
+_canonicalize_smiles = canonicalize
+
 
 
 
