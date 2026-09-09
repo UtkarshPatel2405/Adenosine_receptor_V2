@@ -18,7 +18,7 @@ from src.models.interaction_engine import analyze_pocket_interactions
 from src.models.safety_engine import evaluate_safety_profile
 from src.models.admet_engine import evaluate_cns_admet
 from src.models.adaptive_conformal import calibrate_adaptive_interval
-from src.models.multitask_covariance import pchembl_to_ki_nm, format_ki_display, regularize_multitask_predictions
+from src.models.multitask_covariance import pchembl_to_ki_nm, format_ki_display
 
 
 def _descriptors(mol: Chem.Mol) -> Dict[str, Any]:
@@ -32,7 +32,7 @@ def _descriptors(mol: Chem.Mol) -> Dict[str, Any]:
 
 
 def predict(smiles: str, threshold: float = 6.0, run_rf: bool = True) -> Dict[str, Any]:
-    """Run multi-target affinity prediction, adaptive conformal bounds, functional MoA, safety, and ADMET."""
+    """Run multi-target affinity prediction, calibrated conformal bounds, functional MoA, safety, and ADMET."""
     mol = Chem.MolFromSmiles(smiles)
     if mol is None: raise ValueError("Invalid SMILES")
     canon = Chem.MolToSmiles(mol, canonical=True)
@@ -46,7 +46,7 @@ def predict(smiles: str, threshold: float = 6.0, run_rf: bool = True) -> Dict[st
     models_map = {"XGBoost": _load_xgb_models(), "RandomForest": _load_rf_models(), "LightGBM": _load_lgb_models()}
     stack_models = _load_stack_models()
 
-    preds: Dict[str, Dict[str, float]] = {m: {} for m in ["XGBoost", "RandomForest", "LightGBM", "Stacked", "PyTorch", "MultiTask_Covariance"]}
+    preds: Dict[str, Dict[str, float]] = {m: {} for m in ["XGBoost", "RandomForest", "LightGBM", "Stacked", "PyTorch"]}
     unc: Dict[str, Dict[str, float]] = {m: {} for m in preds}
     intervals: Dict[str, Dict[str, Any]] = {m: {} for m in preds}
     ki_values: Dict[str, Any] = {}
@@ -54,7 +54,7 @@ def predict(smiles: str, threshold: float = 6.0, run_rf: bool = True) -> Dict[st
     for st in SUBTYPES:
         for m_name, m_dict in models_map.items():
             p, u, iv = _predict_one_subtype(m_dict, x, st)
-            # Apply locally adaptive / scaffold-conditioned conformal scaling
+            # Calibrate conformal bounds with domain awareness
             iv_adaptive = calibrate_adaptive_interval(p, iv["lower"], iv["upper"], ad_info.get("tanimoto_max", 0.0), in_domain=ad_info["in_domain"])
             preds[m_name][st], unc[m_name][st], intervals[m_name][st] = p, u, iv_adaptive
 
@@ -68,16 +68,15 @@ def predict(smiles: str, threshold: float = 6.0, run_rf: bool = True) -> Dict[st
         gnn_val = _try_gnn_predict(canon, st)
         preds["PyTorch"][st], unc["PyTorch"][st], intervals["PyTorch"][st] = ((float(gnn_val), 0.0, {"lower": float(gnn_val), "upper": float(gnn_val), "width": 0.0}) if gnn_val is not None else _ZERO_RESULT)
 
-    # Multi-task 7-TM covariance regularization & thermodynamic Ki (nM) conversion
+    # Reference predictions from production XGBoost model
     ref_preds = preds["XGBoost"]
-    cov_preds = regularize_multitask_predictions(ref_preds)
-    preds["MultiTask_Covariance"] = cov_preds
 
     for st in SUBTYPES:
         ki_nm = pchembl_to_ki_nm(ref_preds.get(st, 0.0))
         ki_low = pchembl_to_ki_nm(intervals["XGBoost"][st]["upper"])  # higher pChEMBL = lower Ki nM
         ki_high = pchembl_to_ki_nm(intervals["XGBoost"][st]["lower"])
         ki_values[st] = {"ki_nm": round(ki_nm, 2), "display": format_ki_display(ki_nm), "interval_display": f"[{format_ki_display(ki_low)} – {format_ki_display(ki_high)}]"}
+
 
     sel_spectrum = compute_selectivity_spectrum(ref_preds, canon, in_domain=ad_info["in_domain"])
     target_hits = [st for st, score in ref_preds.items() if score >= threshold and ad_info["in_domain"]]

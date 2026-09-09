@@ -23,7 +23,7 @@ def render_tab_structural(data: dict) -> None:
             m_rows = []
             for m in gpcr_matches:
                 pdb_id = m.get("pdb_id", "")
-                gpcr_url = m.get("gpcrdb_url", f"https://gpcrdb.org/structure/{pdb_id}")
+                gpcr_url = m.get("gpcrdb_url", f"https://gpcrdb.org/structure/{pdb_id}/")
                 m_rows.append({
                     "PDB Entry": pdb_id,
                     "Receptor Subtype": f"Human {m.get('subtype')}",
@@ -50,7 +50,7 @@ def render_tab_structural(data: dict) -> None:
         cat_rows = []
         for r in GPCRDB_CATALOG_RECORDS:
             pdb_id = r.get("PDB ID", "—")
-            link = f"https://gpcrdb.org/structure/{pdb_id}" if pdb_id != "—" else "https://alphafold.ebi.ac.uk/entry/P29275"
+            link = f"https://gpcrdb.org/structure/{pdb_id}/" if pdb_id != "—" else "https://alphafold.ebi.ac.uk/entry/P29275"
             cat_rows.append({
                 "Receptor Subtype": r.get("Subtype", ""),
                 "Conformation State": r.get("State", ""),

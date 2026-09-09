@@ -33,9 +33,14 @@ def render_tab_neighbors(data: dict) -> None:
     n_actives = sum(1 for n in nbrs if (n.get("pchembl") or 0) >= 6.0)
     avg_pcm = sum((n.get("pchembl") or 0) for n in nbrs) / max(len(nbrs), 1)
 
-    # For top PDB: use neighbor's ligand-matched structure if available, else subtype canonical
+    # For top PDB: check if neighbor has authentic co-crystal match
     top_struct = (nbrs[0].get("real_structures") or [{}])[0] if nbrs else {}
-    top_pdb = top_struct.get("id") or default_pdb_id
+    if top_struct.get("id"):
+        top_pdb = top_struct.get("id")
+        top_pdb_lbl = f"Co-Crystal ({top_struct.get('ligand', 'Ligand')})"
+    else:
+        top_pdb = f"{default_pdb_id} (Ref)"
+        top_pdb_lbl = "Subtype Pocket Template"
 
     k_cols = st.columns(4)
     with k_cols[0]:
@@ -47,7 +52,7 @@ def render_tab_neighbors(data: dict) -> None:
     with k_cols[2]:
         st.markdown(f'<div class="kpi-box"><div class="kpi-label">Mean Analog Affinity</div><div class="kpi-value" style="color:var(--purple);font-size:1.15rem">{avg_pcm:.2f}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">Average pChEMBL</div></div>', unsafe_allow_html=True)
     with k_cols[3]:
-        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Structural Template</div><div class="kpi-value" style="color:var(--cyan);font-size:1.15rem">{top_pdb}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">Closest PDB Co-Crystal</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-box"><div class="kpi-label">Structural Template</div><div class="kpi-value" style="color:var(--cyan);font-size:1.15rem">{top_pdb}</div><div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">{top_pdb_lbl}</div></div>', unsafe_allow_html=True)
 
     # 2. Visual Top-3 Nearest Structural Analogs Cards
     st.markdown("<div style='font-size:0.85rem;font-weight:700;color:#f8fafc;margin:1rem 0 0.4rem'>Closest Structural Analogs in Training Library:</div>", unsafe_allow_html=True)
@@ -108,10 +113,6 @@ def render_tab_neighbors(data: dict) -> None:
     st.plotly_chart(fig, width="stretch")
 
     # 4. Detailed Tabular Breakdown with Clean Native Links
-    # KEY FIX: When a neighbor compound has no ligand-matched GPCRdb structure
-    # (Tanimoto to co-crystallized ligands too low), fall back to the canonical
-    # deposited receptor structure for the selected subtype rather than
-    # the generic GPCRdb homepage.
     st.markdown("<div style='font-size:0.85rem;font-weight:700;color:#f8fafc;margin:0.8rem 0 0.4rem'>Full Analog Assay & Co-Crystal Registry:</div>", unsafe_allow_html=True)
     rows = []
     for i, n in enumerate(nbrs, 1):
@@ -119,20 +120,18 @@ def render_tab_neighbors(data: dict) -> None:
         act = n.get("activity", "N/A")
         tan = n.get("tanimoto")
 
-        # Try to get a ligand-matched structure first
+        # Check for ligand-matched co-crystal structure
         real_structs = n.get("real_structures") or []
         if real_structs:
             first_struct = real_structs[0]
             struct_id = first_struct.get("id", "")
             gpcr_link = first_struct.get("gpcrdb_url") or (
-                f"https://gpcrdb.org/structure/{struct_id}" if struct_id else None
+                f"https://gpcrdb.org/structure/{struct_id}/" if struct_id else None
             )
+            struct_status = f"Co-Crystal ({struct_id})"
         else:
-            gpcr_link = None
-
-        # Fallback: use canonical receptor structure for this subtype
-        if not gpcr_link:
             gpcr_link = default_gpcrdb_link
+            struct_status = f"Pocket Template ({default_pdb_id})"
 
         rows.append({
             "Rank": f"#{i}",
@@ -140,14 +139,16 @@ def render_tab_neighbors(data: dict) -> None:
             "Tanimoto Similarity": f"{float(tan)*100:.1f}%" if tan is not None else "0.0%",
             "Experimental pChEMBL": f"{float(pcm):.2f}" if pcm is not None else "N/A",
             "Activity Status": act,
-            "GPCRdb Structural Template": gpcr_link,
+            "Structural Context": struct_status,
+            "GPCRdb Entry Link": gpcr_link,
         })
 
     st.dataframe(
         pd.DataFrame(rows),
         column_config={
-            "GPCRdb Structural Template": st.column_config.LinkColumn("GPCRdb Entry", display_text="View Co-Crystal PDB"),
+            "GPCRdb Entry Link": st.column_config.LinkColumn("GPCRdb Structure", display_text="Open on GPCRdb.org"),
         },
         width="stretch",
         hide_index=True,
     )
+

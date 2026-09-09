@@ -39,42 +39,43 @@ st.markdown("""
                 <span style="font-family:'Outfit',sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(135deg, #f8fafc, #38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
                     Adenosine Receptor Profiler
                 </span>
-                <span class="badge-pill badge-cyan" style="font-size:0.75rem;padding:0.2rem 0.6rem">v2.4.0 Production</span>
+                <span class="badge-pill badge-cyan" style="font-size:0.75rem;padding:0.2rem 0.6rem">v3.0 Validated Production</span>
             </div>
             <div style="font-size:0.92rem;color:#94a3b8;margin-top:0.2rem">
-                Industrial CADD & Conformal AI Platform for Multi-Target 7-TM GPCR Selectivity & Drug Discovery
+                Statistically Calibrated Platform for Multi-Target Human Adenosine Receptor (A1, A2A, A2B, A3) Selectivity Profiling
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center">
             <span class="badge-pill badge-green">✓ 4 GPCR Subtypes</span>
             <span class="badge-pill badge-purple">🛡️ 90% Conformal Validity</span>
-            <span class="badge-pill badge-cyan">💎 GPCRdb PDB Co-Crystals</span>
+            <span class="badge-pill badge-cyan">💎 GPCRdb Crystallography</span>
         </div>
     </div>
     <div class="hero-strip" style="margin-top:0.8rem">
         <div class="hero-chip">
-            <div class="chip-label">Covariance Regularization</div>
-            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">4-Subtype Manifold</div>
+            <div class="chip-label">Ensemble Architecture</div>
+            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">XGB + LGBM + RF + Ridge</div>
         </div>
         <div class="hero-chip">
-            <div class="chip-label">Pharmacological MoA</div>
-            <div class="chip-value" style="color:var(--green);font-size:1.05rem">Agonist vs Antagonist</div>
+            <div class="chip-label">Pharmacophore & MoA</div>
+            <div class="chip-value" style="color:var(--green);font-size:1.05rem">GPCR Activation Motifs</div>
         </div>
         <div class="hero-chip">
-            <div class="chip-label">Adaptive Conformal</div>
-            <div class="chip-value" style="color:var(--purple);font-size:1.05rem">90% Finite-Sample</div>
+            <div class="chip-label">Conformal Prediction</div>
+            <div class="chip-value" style="color:var(--purple);font-size:1.05rem">90% Coverage (MAPIE)</div>
         </div>
         <div class="hero-chip">
             <div class="chip-label">OECD Principle 3 AD</div>
-            <div class="chip-value" style="color:var(--amber);font-size:1.05rem">Tanimoto + Physicochem</div>
+            <div class="chip-value" style="color:var(--amber);font-size:1.05rem">Bemis-Murcko Space</div>
         </div>
         <div class="hero-chip">
             <div class="chip-label">Authentic Structures</div>
-            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">GPCRdb.org Verified</div>
+            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">GPCRdb.org Deposited</div>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
+
 
 # Sidebar: Quick Navigation & Platform Info
 st.sidebar.markdown("### 🧬 Platform Navigation")

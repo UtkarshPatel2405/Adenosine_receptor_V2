@@ -11,10 +11,11 @@ def render_tab_efficacy(data: dict) -> None:
     st.markdown("""
     <div class="cadd-card">
         <div class="section-num">04</div>
-        <div class="section-title" style="color:var(--purple)">Functional Efficacy & 3D Activation Toggle Switches</div>
-        <div class="section-subtitle">Pharmacological Mode of Action (Agonist vs Antagonist), G-protein cascades, and orthosteric toggle switches</div>
+        <div class="section-title" style="color:var(--purple)">Functional Mode of Action & Pharmacophore Motifs</div>
+        <div class="section-subtitle">Structural MoA hypotheses (Agonist vs Antagonist) and conserved purinergic orthosteric pocket motifs</div>
     </div>
     """, unsafe_allow_html=True)
+
 
     moa_title = eff.get("mode_of_action", "Unknown")
     moa_color = "var(--green)" if "Agonist" in moa_title else "var(--cyan)" if "Antagonist" in moa_title else "var(--amber)"

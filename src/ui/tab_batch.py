@@ -144,17 +144,34 @@ def render_tab_batch() -> None:
                 use_container_width=True,
             )
         with d_c2:
-            # Generate concatenated SDF with embedded properties
-            sdf_lines = []
+            # Generate authentic concatenated SDF with embedded properties and MolBlocks
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+            sdf_buffer = io.StringIO()
             for r in results:
                 smi = r.get("SMILES", "")
                 if smi:
-                    sdf_lines.append(f"{smi}\n> <PRIMARY_TARGET>\n{r.get('Primary Target')}\n\n> <MAX_PCHEMBL>\n{r.get('Max Affinity')}\n\n> <SELECTIVITY_PROFILE>\n{r.get('Selectivity Profile')}\n\n$$$$\n")
+                    m = Chem.MolFromSmiles(smi)
+                    if m:
+                        try:
+                            AllChem.Compute2DCoords(m)
+                        except Exception:
+                            pass
+                        m.SetProp("PRIMARY_TARGET", str(r.get("Primary Target", "N/A")))
+                        m.SetProp("MAX_PCHEMBL", str(r.get("Max Affinity", 0.0)))
+                        m.SetProp("SELECTIVITY_PROFILE", str(r.get("Selectivity Profile", "")))
+                        m.SetProp("A1_PCHEMBL", str(r.get("A1 pChEMBL", "")))
+                        m.SetProp("A2A_PCHEMBL", str(r.get("A2A pChEMBL", "")))
+                        m.SetProp("A2B_PCHEMBL", str(r.get("A2B pChEMBL", "")))
+                        m.SetProp("A3_PCHEMBL", str(r.get("A3 pChEMBL", "")))
+                        sdf_buffer.write(Chem.MolToMolBlock(m))
+                        sdf_buffer.write("$$$$\n")
             st.download_button(
                 "📥 Download Scored Library (SDF / Structure File)",
-                "".join(sdf_lines),
+                sdf_buffer.getvalue(),
                 file_name="adenosine_library_screen_results.sdf",
                 mime="chemical/x-mdl-sdfile",
                 use_container_width=True,
             )
+
 

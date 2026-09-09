@@ -39,20 +39,21 @@ def render_tab_overview(data: dict) -> None:
         st.markdown("""
         <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.4);border-radius:8px;padding:0.8rem 1.1rem;margin-bottom:1rem;">
             <div style="font-weight:700;font-size:0.92rem;color:#38bdf8">🔬 DE NOVO SCREENING CANDIDATE (NOT FOUND IN TRAINING DATABASE)</div>
-            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:0.3rem;line-height:1.4">Full ML pipeline executed across 4 tree ensembles + 7-TM GPCR covariance regularization.</div>
+            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:0.3rem;line-height:1.4">Full ML pipeline executed across XGBoost, LightGBM, Random Forest, and Stacked Ridge meta-learner.</div>
         </div>
         """, unsafe_allow_html=True)
 
     if not ad_in:
-        st.markdown(f'<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:#fca5a5;"><strong style="color:#f87171">⚠️ Applicability Domain Advisory:</strong> Low structural overlap (Tanimoto max = {ad_obj.get("tanimoto_max", 0):.2f}). Conformal intervals expanded.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.8rem;color:#fca5a5;"><strong style="color:#f87171">⚠️ Applicability Domain Advisory:</strong> Low structural overlap (Tanimoto max = {ad_obj.get("tanimoto_max", 0):.2f}). Molecule lies outside the primary training scaffold domain.</div>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="cadd-card">
         <div class="section-num">01</div>
         <div class="section-title" style="color:var(--cyan)">Executive Overview & 4-Subtype Affinity Grid</div>
-        <div class="section-subtitle">Multi-model ensemble predictions across A1, A2A, A2B, and A3 with adaptive 90% conformal intervals & thermodynamic Ki</div>
+        <div class="section-subtitle">Multi-model ensemble predictions across A1, A2A, A2B, and A3 with calibrated 90% conformal intervals & thermodynamic Ki</div>
     </div>
     """, unsafe_allow_html=True)
+
 
     kpi_cols = st.columns(4)
     with kpi_cols[0]:

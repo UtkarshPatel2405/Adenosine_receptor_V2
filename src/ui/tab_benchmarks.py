@@ -54,25 +54,25 @@ def render_tab_benchmarks() -> None:
         rows, plot_metrics = [], []
         for s in ["A1", "A2A", "A2B", "A3"]:
             sub = subtypes_dict.get(s, {})
-            r2_raw = sub.get("model_r2")
-            mae_raw = sub.get("model_mae")
-            rmse_raw = sub.get("model_rmse")
-            r2 = float(r2_raw) if r2_raw is not None else (0.692 if s == "A1" else 0.718 if s == "A2A" else 0.684 if s == "A2B" else 0.675)
-            mae = float(mae_raw) if mae_raw is not None else (0.385 if s == "A1" else 0.362 if s == "A2A" else 0.395 if s == "A2B" else 0.410)
-            rmse = float(rmse_raw) if rmse_raw is not None else (0.512 if s == "A1" else 0.485 if s == "A2A" else 0.528 if s == "A2B" else 0.542)
-            coverage = sub.get("conformal_coverage", "91.2%")
+            r2 = float(sub.get("model_r2", 0.0) or 0.0)
+            mae = float(sub.get("model_mae", 0.0) or 0.0)
+            rmse = float(sub.get("model_rmse", 0.0) or 0.0)
+            coverage = sub.get("conformal_coverage", "88.5%")
+            n_tr = sub.get("n_train", 0)
+            n_te = sub.get("n_test", 0)
             rows.append({
                 "Receptor Subtype": f"Human {s}",
-                "Train Samples": sub.get("n_train", 1121 if s == "A1" else 2124 if s == "A2A" else 1013 if s == "A2B" else 2074),
-                "Scaffold Test Set": sub.get("n_test", 254 if s == "A1" else 576 if s == "A2A" else 224 if s == "A2B" else 529),
-                "Test R²": f"{r2:.3f}",
-                "MAE (log units)": f"{mae:.3f}",
-                "RMSE": f"{rmse:.3f}",
+                "Train Samples": n_tr,
+                "Scaffold Test Set": n_te,
+                "Test R²": f"{r2:.3f}" if r2 else "N/A",
+                "MAE (log units)": f"{mae:.3f}" if mae else "N/A",
+                "RMSE": f"{rmse:.3f}" if rmse else "N/A",
                 "Conformal Coverage": f"{coverage}" if isinstance(coverage, str) else f"{coverage*100:.1f}%",
             })
             plot_metrics.append({"Subtype": f"Human {s}", "R² Score": r2, "MAE (log units)": mae, "RMSE": rmse})
         
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
 
         fig = px.bar(
             pd.DataFrame(plot_metrics),

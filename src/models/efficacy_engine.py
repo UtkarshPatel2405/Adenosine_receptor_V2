@@ -30,40 +30,46 @@ def predict_functional_efficacy(smiles: str, primary_subtype: str, max_pchembl: 
     has_xanthine = mol.HasSubstructMatch(_XANTHINE_CORE)
     has_triazolo = mol.HasSubstructMatch(_TRIAZOLOPYRIMIDINE)
 
-    # Agonist vs Antagonist classification
+    # Structural MoA classification based on conserved GPCR activation hallmarks
     if has_carboxamide:
-        moa = "Full Agonist (High Efficacy)"
+        moa = "High-Efficacy Agonist (Carboxamide-Ribose Engaged)"
         eff_class = "Agonist"
         act_prob = 0.95
     elif has_ribose:
-        moa = "Agonist / Partial Agonist"
+        moa = "Agonist / Partial Agonist (Ribose Anchor Present)"
         eff_class = "Agonist"
         act_prob = 0.85
     elif has_xanthine or has_triazolo:
-        moa = "Neutral Antagonist / Inverse Agonist"
+        moa = "Competitive Antagonist / Inverse Agonist"
         eff_class = "Antagonist"
-        act_prob = 0.08
+        act_prob = 0.05
     else:
-        # Non-ribose heterocyclic chemotype default
-        moa = "Allosteric Modulator / Antagonist"
-        eff_class = "Antagonist"
-        act_prob = 0.25
+        # Non-ribose heterocyclic chemotype
+        moa = "Unclassified Heterocyclic Chemotype (Assay Required)"
+        eff_class = "Unclassified"
+        act_prob = 0.50
 
     # G-protein signaling cascades by subtype
     if primary_subtype in ("A2A", "A2B"):
         if eff_class == "Agonist":
             pathway = "Gs-coupled -> Adenylyl Cyclase Activation -> cAMP Elevation -> Vasodilation / Anti-inflammatory"
             indication = "Coronary Vasodilation / Immuno-suppression" if primary_subtype == "A2A" else "Tissue Protection / Anti-fibrotic"
-        else:
+        elif eff_class == "Antagonist":
             pathway = "Gs-blockade -> Basal cAMP Maintenance -> T-cell Activation / Striatal Modulation"
             indication = "Immuno-Oncology Checkpoint Blockade / Parkinson's Disease" if primary_subtype == "A2A" else "Cancer Immunotherapy / Asthma Relief"
+        else:
+            pathway = "Gs-modulatory pathway (Subtype A2A/A2B target engagement)"
+            indication = "Targeted A2A/A2B Modulation (Functional cAMP validation needed)"
     else:  # A1, A3
         if eff_class == "Agonist":
             pathway = "Gi/o-coupled -> Adenylyl Cyclase Inhibition -> cAMP Reduction -> Heart Rate Slowing / Analgesia"
             indication = "Anti-Arrhythmic (AV Node Delay) / Pain Relief" if primary_subtype == "A1" else "Immuno-modulator / Rheumatoid Arthritis"
-        else:
+        elif eff_class == "Antagonist":
             pathway = "Gi-blockade -> Adenylyl Cyclase Disinhibition -> Renoprotection / Diuresis"
             indication = "Acute Kidney Injury Protection / Diuretic" if primary_subtype == "A1" else "Inflammatory Disease Relief"
+        else:
+            pathway = "Gi/o-modulatory pathway (Subtype A1/A3 target engagement)"
+            indication = "Targeted A1/A3 Modulation (Functional cAMP validation needed)"
 
     return {
         "mode_of_action": moa,
@@ -72,3 +78,4 @@ def predict_functional_efficacy(smiles: str, primary_subtype: str, max_pchembl: 
         "signaling_pathway": pathway,
         "therapeutic_indication": indication,
     }
+

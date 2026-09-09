@@ -28,7 +28,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "Adenosine",
         "ligand_smiles": "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N=CN=C2N",
         "complex_details": "Adenosine (Agonist) + Gi2 heterotrimer",
-        "gpcrdb_url": "https://gpcrdb.org/structure/6D9H",
+        "gpcrdb_url": "https://gpcrdb.org/structure/6D9H/",
         "rcsb_url": "https://www.rcsb.org/structure/6D9H",
     },
     {
@@ -40,7 +40,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "CCPA",
         "ligand_smiles": "Clc1nc(NC2CCCC2)c2ncn(C3OC(CO)C(O)C3O)c2n1",
         "complex_details": "CCPA (Selective Agonist) + Gi2 heterotrimer",
-        "gpcrdb_url": "https://gpcrdb.org/structure/7LD3",
+        "gpcrdb_url": "https://gpcrdb.org/structure/7LD3/",
         "rcsb_url": "https://www.rcsb.org/structure/7LD3",
     },
     {
@@ -52,7 +52,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "NECA",
         "ligand_smiles": "CCNC(=O)C1OC(n2cnc3c(N)ncnc32)C(O)C1O",
         "complex_details": "NECA (Agonist) + Gi2 heterotrimer",
-        "gpcrdb_url": "https://gpcrdb.org/structure/7LD4",
+        "gpcrdb_url": "https://gpcrdb.org/structure/7LD4/",
         "rcsb_url": "https://www.rcsb.org/structure/7LD4",
     },
     {
@@ -64,7 +64,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "DU172",
         "ligand_smiles": "O=C(c1ccc(F)cc1)c1c[nH]c2nc(Nc3ccccc3)nc(Nc3ccccc3)c12",
         "complex_details": "DU172 (Antagonist) + BRIL fusion",
-        "gpcrdb_url": "https://gpcrdb.org/structure/5N2S",
+        "gpcrdb_url": "https://gpcrdb.org/structure/5N2S/",
         "rcsb_url": "https://www.rcsb.org/structure/5N2S",
     },
     {
@@ -76,7 +76,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "PSB36",
         "ligand_smiles": "O=S(=O)(c1ccc(Cl)cc1)N1CCN(c2nc(Nc3ccccc3)nc(Nc3ccccc3)n2)CC1",
         "complex_details": "PSB36 (Antagonist) + Rubredoxin fusion",
-        "gpcrdb_url": "https://gpcrdb.org/structure/5UEN",
+        "gpcrdb_url": "https://gpcrdb.org/structure/5UEN/",
         "rcsb_url": "https://www.rcsb.org/structure/5UEN",
     },
     # Human A2A Receptor (GPCRdb: aa2ar_human)
@@ -89,7 +89,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "ZM241385",
         "ligand_smiles": "Nc1nc(NCc2ccc(O)cc2)nc2nc(-c3ccco3)nn12",
         "complex_details": "ZM241385 bound resting state",
-        "gpcrdb_url": "https://gpcrdb.org/structure/3EML",
+        "gpcrdb_url": "https://gpcrdb.org/structure/3EML/",
         "rcsb_url": "https://www.rcsb.org/structure/3EML",
     },
     {
@@ -101,7 +101,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "ZMA",
         "ligand_smiles": "Nc1nc(NCc2ccc(O)cc2)nc2nc(-c3ccco3)nn12",
         "complex_details": "Ultra-high resolution ZMA complex",
-        "gpcrdb_url": "https://gpcrdb.org/structure/5IU4",
+        "gpcrdb_url": "https://gpcrdb.org/structure/5IU4/",
         "rcsb_url": "https://www.rcsb.org/structure/5IU4",
     },
     {
@@ -113,7 +113,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "Adenosine",
         "ligand_smiles": "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N=CN=C2N",
         "complex_details": "Adenosine (Agonist) + mini-Gs signaling complex",
-        "gpcrdb_url": "https://gpcrdb.org/structure/6GDG",
+        "gpcrdb_url": "https://gpcrdb.org/structure/6GDG/",
         "rcsb_url": "https://www.rcsb.org/structure/6GDG",
     },
     {
@@ -125,7 +125,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "NECA",
         "ligand_smiles": "CCNC(=O)[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1O",
         "complex_details": "5'-N-ethylcarboxamidoadenosine (NECA agonist)",
-        "gpcrdb_url": "https://gpcrdb.org/structure/2YDO",
+        "gpcrdb_url": "https://gpcrdb.org/structure/2YDO/",
         "rcsb_url": "https://www.rcsb.org/structure/2YDO",
     },
     {
@@ -137,7 +137,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "UK-432097",
         "ligand_smiles": "CCNC(=O)[C@H]1O[C@@H](n2cnc3c(NCCc4ccc(CC(=O)NCCc5ccccc5)cc4)ncnc32)[C@H](O)[C@@H]1O",
         "complex_details": "Bulky potent C2-extended agonist UK-432097",
-        "gpcrdb_url": "https://gpcrdb.org/structure/3QAK",
+        "gpcrdb_url": "https://gpcrdb.org/structure/3QAK/",
         "rcsb_url": "https://www.rcsb.org/structure/3QAK",
     },
     # Human A2B Receptor (GPCRdb: aa2br_human)
@@ -150,7 +150,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "BAY 60-6583",
         "ligand_smiles": "N#Cc1c(N)nc(-c2ccc(NC(=O)c3cccc(C(F)(F)F)c3)cc2)nc1N",
         "complex_details": "BAY 60-6583 (Selective Non-nucleoside Agonist) + Gs",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8HDO",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8HDO/",
         "rcsb_url": "https://www.rcsb.org/structure/8HDO",
     },
     {
@@ -162,7 +162,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "Adenosine",
         "ligand_smiles": "C1=NC2=C(N1[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N=CN=C2N",
         "complex_details": "Adenosine (Agonist) + Gs heterotrimer",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8HDP",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8HDP/",
         "rcsb_url": "https://www.rcsb.org/structure/8HDP",
     },
     # Human A3 Receptor (GPCRdb: aa3r_human)
@@ -175,7 +175,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "CF101 / IB-MECA",
         "ligand_smiles": "CNC(=O)[C@H]1O[C@@H](n2cnc3c(NCc4ccccc4)ncnc32)[C@H](O)[C@@H]1O",
         "complex_details": "IB-MECA (Selective Agonist) + Gi signaling complex",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8X16",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8X16/",
         "rcsb_url": "https://www.rcsb.org/structure/8X16",
     },
     {
@@ -187,7 +187,7 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "CF102 / Cl-IB-MECA",
         "ligand_smiles": "CNC(=O)[C@H]1O[C@@H](n2cnc3c(NCc4ccccc4)nc(Cl)nc32)[C@H](O)[C@@H]1O",
         "complex_details": "Cl-IB-MECA (Agonist) + Gi complex",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8X17",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8X17/",
         "rcsb_url": "https://www.rcsb.org/structure/8X17",
     },
     {
@@ -199,9 +199,10 @@ GPCRDB_ADENOSINE_STRUCTURES: List[Dict[str, Any]] = [
         "ligand_name": "LUF7602",
         "ligand_smiles": "O=S(=O)(Nc1ccccc1)c1ccc(NC(=S)Nc2ccc(cc2)c2nc3ccccc3o2)cc1",
         "complex_details": "LUF7602 (Covalent Inactive-State Antagonist)",
-        "gpcrdb_url": "https://gpcrdb.org/structure/9EHS",
+        "gpcrdb_url": "https://gpcrdb.org/structure/9EHS/",
         "rcsb_url": "https://www.rcsb.org/structure/9EHS",
     },
+
 ]
 
 # Precompute RDKit fingerprints for all GPCRdb co-crystallized ligands
@@ -271,25 +272,25 @@ def find_gpcrdb_structure_matches(smiles: str, subtype: Optional[str] = None, mi
 _SUBTYPE_CANONICAL_STRUCTURES: Dict[str, Dict[str, str]] = {
     "A1": {
         "pdb_id": "7LD3",
-        "gpcrdb_url": "https://gpcrdb.org/structure/7LD3",
+        "gpcrdb_url": "https://gpcrdb.org/structure/7LD3/",
         "rcsb_url": "https://www.rcsb.org/structure/7LD3",
         "label": "Human A1 (Active, 3.30 A, CCPA agonist)",
     },
     "A2A": {
         "pdb_id": "5IU4",
-        "gpcrdb_url": "https://gpcrdb.org/structure/5IU4",
+        "gpcrdb_url": "https://gpcrdb.org/structure/5IU4/",
         "rcsb_url": "https://www.rcsb.org/structure/5IU4",
         "label": "Human A2A (Inactive, 1.72 A, ZMA antagonist)",
     },
     "A2B": {
         "pdb_id": "8HDO",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8HDO",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8HDO/",
         "rcsb_url": "https://www.rcsb.org/structure/8HDO",
         "label": "Human A2B (Active, 2.87 A, BAY 60-6583 agonist)",
     },
     "A3": {
         "pdb_id": "8X17",
-        "gpcrdb_url": "https://gpcrdb.org/structure/8X17",
+        "gpcrdb_url": "https://gpcrdb.org/structure/8X17/",
         "rcsb_url": "https://www.rcsb.org/structure/8X17",
         "label": "Human A3 (Active, 3.19 A, Cl-IB-MECA agonist)",
     },
@@ -304,10 +305,11 @@ def subtype_default_structure(subtype: str) -> Dict[str, str]:
     """
     return _SUBTYPE_CANONICAL_STRUCTURES.get(subtype, {
         "pdb_id": "6D9H",
-        "gpcrdb_url": "https://gpcrdb.org/structure/6D9H",
+        "gpcrdb_url": "https://gpcrdb.org/structure/6D9H/",
         "rcsb_url": "https://www.rcsb.org/structure/6D9H",
         "label": "Human A1 (Active, 3.60 A, Adenosine agonist)",
     })
+
 
 
 @lru_cache(maxsize=1024)

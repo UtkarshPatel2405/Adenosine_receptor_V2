@@ -1,4 +1,4 @@
-"""Pillar 2: 3D Pocket Interaction Fingerprints & Stereocenter Analysis."""
+"""2D Pharmacophore Motif Screening & Orthosteric Interaction Hypotheses."""
 from typing import Dict, Any, List
 from rdkit import Chem
 from rdkit.Chem import Descriptors, Lipinski
@@ -9,10 +9,11 @@ _AROMATIC_RING_SMARTS = Chem.MolFromSmarts("a1aaaaa1")
 
 
 def analyze_pocket_interactions(smiles: str, primary_subtype: str) -> Dict[str, Any]:
-    """Analyze 3D interaction anchors, toggle switch engagement, and chiral centers."""
+    """Screen query molecule for key 2D pharmacophore motifs corresponding to orthosteric pocket residues."""
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return {"asn_anchor_hbond": False, "trp_toggle_switch": False, "phe_pi_stacking": False, "chiral_centers": [], "stereocenter_count": 0, "chiral_alert": "Invalid structure"}
+
 
     # 1. Asn6.55 Dual H-Bond Anchor (Asn253 in A2A, Asn254 in A1, Asn250 in A3)
     has_exocyclic_nh2 = mol.HasSubstructMatch(Chem.MolFromSmarts("c[NH2]")) or mol.HasSubstructMatch(Chem.MolFromSmarts("c[NH]"))

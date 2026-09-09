@@ -10,7 +10,7 @@ from src.models.interaction_engine import analyze_pocket_interactions
 from src.models.safety_engine import evaluate_safety_profile
 from src.models.admet_engine import evaluate_cns_admet
 from src.models.adaptive_conformal import calibrate_adaptive_interval
-from src.models.multitask_covariance import pchembl_to_ki_nm, format_ki_display, regularize_multitask_predictions
+from src.models.multitask_covariance import pchembl_to_ki_nm, format_ki_display
 
 __all__ = [
     "_load_scaler", "_load_xgb_models", "_load_lgb_models",
@@ -24,5 +24,5 @@ __all__ = [
     "calibrate_adaptive_interval",
     "pchembl_to_ki_nm",
     "format_ki_display",
-    "regularize_multitask_predictions",
 ]
+
