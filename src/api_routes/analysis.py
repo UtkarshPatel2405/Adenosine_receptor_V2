@@ -99,14 +99,8 @@ def _activity_badge(pchembl):
 
 
 def _neighbor_records(sim, smiles, tanimoto, pchembl=None, subtype=None):
-    from src.pdb_utils import real_structure_refs_with_analogs
     _, sim_label = _tanimoto_badge(tanimoto)
-    try:
-        refs = real_structure_refs_with_analogs(smiles, subtype=subtype)
-    except Exception:
-        refs = []
-    rec = {"smiles": smiles, "tanimoto": round(tanimoto, 3), "similarity_label": sim_label,
-           "real_structures": refs}
+    rec = {"smiles": smiles, "tanimoto": round(tanimoto, 3), "similarity_label": sim_label}
     if pchembl is not None:
         _, act_label = _activity_badge(pchembl)
         rec["pchembl"] = round(pchembl, 2)
@@ -140,18 +134,6 @@ def receptor_neighbors(smiles: str, subtype: str, top_k: int = 10):
     scored.sort(key=lambda x: x[0], reverse=True)
     return [_neighbor_records(round(s, 3), t, s, p, subtype=subtype) for s, t, p in scored[:top_k]]
 
-
-_RECEPTOR_TEMPLATES = {  # Verified deposited human GPCRdb receptor complexes
-    "A1": "6D9H", "A2A": "6GDG", "A2B": "8HDO", "A3": "8X16",
-}
-
-# Verified via RCSB: each template is an adenosine/endogenous-agonist-bound complex.
-_RECEPTOR_TEMPLATE_TITLE = {
-    "6D9H": "Human A1–Gi2 complex bound to endogenous agonist",
-    "2YDO": "Thermostabilised human A2A receptor with adenosine bound",
-    "8HDP": "Human A2B receptor bound to adenosine",
-    "8YH2": "Human A3–Gi complex bound to adenosine",
-}
 
 
 def receptors_overview(smiles: str):

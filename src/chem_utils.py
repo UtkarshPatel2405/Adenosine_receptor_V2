@@ -208,44 +208,6 @@ def _smiles_hash(smiles: str) -> str:
     return hashlib.sha256(smiles.encode("utf-8")).hexdigest()[:12]
 
 
-def lookup_pdb_ids(smiles: str) -> list[dict]:
-    canon = canonicalize(smiles)
-    if canon is None:
-        return []
-    try:
-        from src.pdb_utils import find_gpcrdb_structure_matches
-        matches = find_gpcrdb_structure_matches(canon, min_tanimoto=0.40)
-        hits = []
-        for m in matches:
-            hits.append({
-                "pdb_id": m["pdb_id"],
-                "subtype": m["subtype"],
-                "state": m["state"],
-                "name": f"Human {m['subtype']} ({m['state']}) · {m['ligand_name']}",
-                "url": m["rcsb_url"],
-                "gpcrdb_url": m["gpcrdb_url"],
-                "tanimoto": m["tanimoto"],
-            })
-        return hits
-    except Exception:
-        return []
-
-
-def topk_tanimoto_with_pdb(smiles: str, k: int = 5) -> tuple[Optional[str], list[dict]]:
-    from src.pdb_utils import real_structure_refs_with_analogs
-    canon, top = topk_tanimoto(smiles, k=k)
-    if not top:
-        return canon, []
-    results = []
-    for smi, tan in top:
-        results.append({
-            "smiles": smi,
-            "tanimoto": tan,
-            "real_structures": real_structure_refs_with_analogs(smi),
-        })
-    return canon, results
-
-
 @lru_cache(maxsize=1)
 def _load_train_smiles() -> list[str]:
     path = PROCESSED_DATA_DIR / "train_smiles.pkl"

@@ -113,21 +113,15 @@ The graphical dashboard is organized into specialized workspaces:
    * **Tab 6: Drug-Likeness (QED)**: Quantitative Estimation of Drug-likeness, Lipinski Rule-of-5 compliance, and PAINS substructure liability filter.
    * **Tab 7: Chemical Space & Neighbors**: Nearest training-set neighbors by Tanimoto similarity with interactive 2D bubble scatter.
    * **Tab 8: Explainable AI (TreeSHAP)**: Local Shapley additive explanations breaking down per-feature contributions to subtype binding.
-   * **Tab 9: Pocket Biology & GPCRdb**: Structural analog matching and interactive 3D co-crystal complex explorer (`3Dmol.js`).
-   * **Tab 10: Provenance Audit**: SHA-256 cryptographic digests verifying model binaries, scalers, and reproducible datasets.
+   * **Tab 9: Provenance Audit**: SHA-256 cryptographic digests verifying model binaries, scalers, and reproducible datasets.
 2. **Batch Virtual Screening**: High-throughput library screening with automated numeric CSV downloads.
 3. **Model Benchmark Suite**: Publication-grade performance charts, conformal quartile calibrations, TreeSHAP bar plots, and dataset downloads.
-4. **Structural Biology 3D Gallery**: Curated active (agonist-bound) vs inactive (antagonist-bound) crystallographic complexes from RCSB PDB & GPCRdb:
-   * **$A_1$**: `6D9H` (Cryo-EM, 3.6 Å) vs `5N2S` (X-ray, 3.3 Å)
-   * **$A_{2A}$**: `6GDG` (Cryo-EM, 2.6 Å) vs `4EIY` (X-ray, 1.8 Å)
-   * **$A_{2B}$**: `6LPJ` (Cryo-EM, 3.2 Å) vs `8JZX` (Cryo-EM, 3.1 Å)
-   * **$A_3$**: `7VAK` (Cryo-EM, 3.0 Å) vs `8HN0` (Cryo-EM, 3.2 Å)
 
 ---
 
 ## 📦 Quickstart & Installation
 
-### Option 1: UV Package Manager (Recommended — Fast)
+### Option 1: UV Package Manager (Recommended, Fast)
 
 ```bash
 # Clone the repository
@@ -195,12 +189,11 @@ Adenosine_receptor_V2/
 │   │   ├── interaction_engine.py # 3D pocket anchors (Asn6.55, Trp6.48, Phe168)
 │   │   ├── safety_engine.py   # Cardiac AV block & PDE off-target safety
 │   │   ├── admet_engine.py    # Pfizer CNS-MPO & Blood-Brain Barrier (LogBB)
-│   │   ├── adaptive_conformal.py # Scaffold-adaptive conformal calibration
-│   │   └── multitask_covariance.py # 7-TM orthosteric joint covariance & Ki
+│   │   └── adaptive_conformal.py # Scaffold-adaptive conformal calibration
 │   └── ui/                    # Streamlit Modern UI Components & Tabs
 │       ├── styles.py          # Custom CSS, dark theme, and typography
-│       ├── presets.py         # Canonical drug presets & GPCRdb records
-│       ├── renderers_3d.py    # 3Dmol.js conformer & complex renderers
+│       ├── presets.py         # Canonical drug presets & benchmark records
+│       ├── renderers_3d.py    # 3Dmol.js conformer renderers
 │       ├── tab_overview.py    # Tab 1: Executive summary & 4-subtype grid
 │       ├── tab_structure.py   # Tab 2: 2D/3D conformer coordinates
 │       ├── tab_selectivity.py # Tab 3: Selectivity radar polygon & deltas
@@ -209,11 +202,9 @@ Adenosine_receptor_V2/
 │       ├── tab_druglikeness.py# Tab 6: QED & PAINS substructure filters
 │       ├── tab_neighbors.py   # Tab 7: Nearest training neighbors scatter
 │       ├── tab_shap.py        # Tab 8: TreeSHAP local feature explanations
-│       ├── tab_structural.py  # Tab 9: GPCRdb pocket biology & complexes
-│       ├── tab_provenance.py  # Tab 10: SHA-256 provenance audit trail
+│       ├── tab_provenance.py  # Tab 9: SHA-256 provenance audit trail
 │       ├── tab_batch.py       # Batch virtual screening pipeline
-│       ├── tab_benchmarks.py  # Model Benchmark Suite & publication metrics
-│       └── tab_gallery.py     # Structural Biology 3D Gallery
+│       └── tab_benchmarks.py  # Model Benchmark Suite & publication metrics
 ├── data/                      # Dataset Repositories (ChEMBL & GPCRdb)
 │   ├── raw/                   # Raw bioactivity CSVs
 │   └── processed/             # Cleaned lookup dictionaries & training sets

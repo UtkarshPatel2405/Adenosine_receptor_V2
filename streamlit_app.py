@@ -20,11 +20,9 @@ from src.ui.tab_safety import render_tab_safety
 from src.ui.tab_druglikeness import render_tab_druglikeness
 from src.ui.tab_neighbors import render_tab_neighbors
 from src.ui.tab_shap import render_tab_shap
-from src.ui.tab_structural import render_tab_structural
 from src.ui.tab_provenance import render_tab_provenance
 from src.ui.tab_batch import render_tab_batch
 from src.ui.tab_benchmarks import render_tab_benchmarks
-from src.ui.tab_gallery import render_tab_gallery
 
 st.set_page_config(page_title="Adenosine Receptor Profiler", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
 apply_custom_styles()
@@ -48,7 +46,7 @@ st.markdown("""
         <div style="display:flex;gap:0.5rem;align-items:center">
             <span class="badge-pill badge-green">✓ 4 GPCR Subtypes</span>
             <span class="badge-pill badge-purple">🛡️ 90% Conformal Validity</span>
-            <span class="badge-pill badge-cyan">💎 GPCRdb Crystallography</span>
+            <span class="badge-pill badge-cyan">💎 Physicochemical ADMET</span>
         </div>
     </div>
     <div class="hero-strip" style="margin-top:0.8rem">
@@ -69,8 +67,8 @@ st.markdown("""
             <div class="chip-value" style="color:var(--amber);font-size:1.05rem">Bemis-Murcko Space</div>
         </div>
         <div class="hero-chip">
-            <div class="chip-label">Authentic Structures</div>
-            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">GPCRdb.org Deposited</div>
+            <div class="chip-label">Physicochem & Descriptors</div>
+            <div class="chip-value" style="color:var(--cyan);font-size:1.05rem">RDKit 2D/3D & QED</div>
         </div>
     </div>
 </div>
@@ -92,11 +90,10 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 # Main Navigation Tabs
-tab_single, tab_batch, tab_benchmark, tab_gallery = st.tabs([
+tab_single, tab_batch, tab_benchmark = st.tabs([
     ":material/science: Single Molecule Profiler",
     ":material/batch_prediction: Batch Virtual Screening",
     ":material/analytics: Model Benchmark Suite",
-    ":material/view_in_ar: Structural Biology Gallery",
 ])
 
 with tab_single:
@@ -150,7 +147,7 @@ with tab_single:
 
     if "active_result" in st.session_state:
         res = st.session_state["active_result"]
-        t1, t2, t3, t4, t5, t6, t7, t8, t9, t10 = st.tabs([
+        t1, t2, t3, t4, t5, t6, t7, t8, t9 = st.tabs([
             ":material/dashboard: Overview & Ki",
             ":material/view_in_ar: 2D/3D Conformer",
             ":material/radar: Selectivity Radar",
@@ -159,7 +156,6 @@ with tab_single:
             ":material/medication: Drug-Likeness (QED)",
             ":material/hub: Chemical Space",
             ":material/psychology: Explainable AI (SHAP)",
-            ":material/biotech: Pocket Biology & GPCRdb",
             ":material/verified_user: Provenance Audit",
         ])
         with t1: render_tab_overview(res)
@@ -170,15 +166,14 @@ with tab_single:
         with t6: render_tab_druglikeness(res)
         with t7: render_tab_neighbors(res)
         with t8: render_tab_shap(res)
-        with t9: render_tab_structural(res)
-        with t10: render_tab_provenance(res)
+        with t9: render_tab_provenance(res)
     elif not submitted:
         st.markdown("""
         <div style="background:rgba(15,23,42,0.6);border:1px dashed rgba(56,189,248,0.3);border-radius:10px;padding:2.5rem 1.5rem;text-align:center;color:#94a3b8;margin-top:1rem;">
             <div style="font-size:2.2rem;margin-bottom:0.5rem">🧪</div>
             <div style="font-size:1.1rem;font-weight:700;color:#f8fafc;margin-bottom:0.3rem">Awaiting Target Molecular Structure</div>
             <div style="font-size:0.85rem;color:#cbd5e1;max-width:520px;margin:0 auto;line-height:1.5;">
-                Select a reference drug preset above or enter custom SMILES, then click <b>'Run Selectivity & Profiling Suite'</b> (or press Enter) to launch full 4-subtype affinity, efficacy, safety, and 3D pocket analysis.
+                Select a reference drug preset above or enter custom SMILES, then click <b>'Run Selectivity & Profiling Suite'</b> (or press Enter) to launch full 4-subtype affinity, efficacy, safety, and conformal uncertainty profiling.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -188,6 +183,3 @@ with tab_batch:
 
 with tab_benchmark:
     render_tab_benchmarks()
-
-with tab_gallery:
-    render_tab_gallery()
