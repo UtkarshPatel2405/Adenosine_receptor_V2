@@ -1,221 +1,185 @@
-"""
-SHAP Tree Explainability — Global and local feature attribution analysis.
-
-Now supports ALL 4 subtypes via --all flag.
-"""
-
-import os
-import pickle
+"""Global TreeSHAP explainability using saved MAPIE conformal XGBoost base estimators."""
+import argparse
 import json
 import logging
+import pickle
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import joblib
 import numpy as np
-import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import seaborn as sns
 import shap
 
-from src.predictor import SUBTYPES
+from src.config import (
+    LOG_LEVEL,
+    MODELS_DIR,
+    MORGAN_BITS,
+    OUTPUTS_DIR,
+    PROCESSED_DATA_DIR,
+    RUN_ID,
+    SUBTYPES,
+)
+from src.data_loader import load_and_clean
+from src.features import build_features
 
 logger = logging.getLogger(__name__)
 
-sns.set_style("whitegrid")
 
-
-def run_shap_analysis(subtype: str = "A2A", mode: str = "precise"):
-    logger.info("=" * 60)
-    logger.info("SHAP TREE ANALYSIS FOR %s (%s mode)", subtype, mode)
-    logger.info("=" * 60)
-    
-    # 1. Load trained model
-    model_path = Path(f"models/{mode}/xgboost_{subtype}_production.pkl")
-    if not model_path.exists():
-        model_path = Path(f"models/{mode}/xgboost_{mode}_{subtype.lower()}_model.pkl")
-    if not model_path.exists():
-        model_path = Path(f"models/xgboost_{subtype.lower()}_model.pkl")
-    if not model_path.exists():
-        model_path = Path(f"models/xgboost_precise_{subtype.lower()}_model.pkl")
-    if not model_path.exists():
-        logger.error("No model found for %s. Complete production retraining first.", subtype)
-        return None
-
-    logger.info("Loading model from %s", model_path)
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
-
-    # Extract fitted base estimator for SHAP TreeExplainer
-    # MAPIE 1.4.1 CrossConformalRegressor stores CV estimators in _mapie_regressor
+def _extract_xgb_estimator(model: Any):
     model_type = type(model).__name__
     if model_type in ("CrossConformalRegressor", "MapieRegressor"):
-        reg = model._mapie_regressor.estimator_ if model_type == "CrossConformalRegressor" else model.estimator_
-        if hasattr(reg, "single_estimator_"):
-            estimator = reg.single_estimator_
-        elif hasattr(reg, "estimators_") and len(reg.estimators_) > 0:
-            estimator = reg.estimators_[0]
-        else:
-            estimator = reg
-    elif isinstance(model, list) and len(model) > 0:
-        estimator = model[0]
-    else:
-        estimator = model
-        
-    # 2. Load test features and feature names using the saved split
-    split_path = Path("data/processed/global_split.json")
+        reg = (
+            model._mapie_regressor.estimator_
+            if model_type == "CrossConformalRegressor"
+            else model.estimator_
+        )
+        single_est = getattr(reg, "single_estimator_", None)
+        if single_est is not None:
+            return single_est
+        estimators = getattr(reg, "estimators_", None)
+        if estimators:
+            return estimators[0]
+        return reg
+    if isinstance(model, list) and model:
+        return model[0]
+    return model
+
+
+def _build_feature_names(pipeline: Any, n_cols: int) -> list[str]:
+    desc_names = []
+    ff = getattr(pipeline, "feature_filter", None)
+    if ff is not None and getattr(ff, "feature_names", None):
+        desc_names = list(ff.feature_names)
+    feature_names = (
+        [f"Morgan_FP_{i}" for i in range(MORGAN_BITS)]
+        + [f"MACCS_{i}" for i in range(167)]
+        + desc_names
+    )
+    if len(feature_names) > n_cols:
+        return feature_names[:n_cols]
+    if len(feature_names) < n_cols:
+        feature_names.extend(f"Feature_{i}" for i in range(len(feature_names), n_cols))
+    return feature_names
+
+
+def _load_test_context(data_dir: str = "data/raw"):
+    split_path = PROCESSED_DATA_DIR / "global_split.json"
     if not split_path.exists():
-        logger.error("Global split missing. Run retrain_production.py first.")
-        return None
-        
-    with open(split_path, "r") as f:
+        raise FileNotFoundError(f"Global split missing at {split_path}; run retrain_production first.")
+    with open(split_path, "r", encoding="utf-8") as f:
         splits = json.load(f)
-        
-    from src.data_loader import load_and_clean
-    # Load test dataframe
-    df, _ = load_and_clean("data/raw", mode="precise", include_decoys=True)
-    test_df_full = df[df["canonical_smiles"].isin(splits["test"])].reset_index(drop=True)
-    
-    # Load global X_test
-    with open("data/processed/features_test.pkl", "rb") as f:
-        X_test_glob = pickle.load(f)
-        
-    subtype_mask = (test_df_full["target_subtype"] == subtype).values
-    X_test = X_test_glob[subtype_mask]
-    test_df = test_df_full[subtype_mask].reset_index(drop=True)
-    
-    scaler_path = Path("models/scaler.pkl")
+
+    scaler_path = MODELS_DIR / "precise" / "scaler_precise.pkl"
     if not scaler_path.exists():
-        logger.error("Scaler missing.")
+        raise FileNotFoundError(f"Production scaler missing at {scaler_path}.")
+    pipeline = joblib.load(scaler_path)
+
+    df, _ = load_and_clean(data_dir, save_lookup_path=None, mode="precise", include_decoys=False)
+    test_smiles_set = set(splits["test"])
+    test_df_full = df[df["canonical_smiles"].isin(test_smiles_set)].reset_index(drop=True)
+
+    return test_df_full, None, pipeline
+
+
+def run_shap_analysis(
+    subtype: str,
+    data_dir: str = "data/raw",
+    top_k: int = 15,
+    _context: Optional[tuple] = None,
+) -> Optional[Dict[str, Any]]:
+    """Compute mean |SHAP| feature importance on the held-out test set for `subtype`."""
+    model_path = MODELS_DIR / "precise" / f"xgboost_{subtype}_production.pkl"
+    if not model_path.exists():
+        logger.error("Model missing for %s at %s.", subtype, model_path)
         return None
-        
-    with open(scaler_path, "rb") as f:
-        pipeline = pickle.load(f)
-        
-    # Build complete feature names list
-    feature_names = [f"Morgan_FP_{i}" for i in range(2048)] + [f"MACCS_{i}" for i in range(167)]
-    selected_desc_names = pipeline.feature_filter.feature_names
-    feature_names.extend(selected_desc_names)
-    
-    # Trim feature names to match actual X_test shape
-    if len(feature_names) > X_test.shape[1]:
-        feature_names = feature_names[:X_test.shape[1]]
-    elif len(feature_names) < X_test.shape[1]:
-        for i in range(len(feature_names), X_test.shape[1]):
-            feature_names.append(f"Feature_{i}")
-    
-    logger.info("Loaded test set with shape: %s", X_test.shape)
-    logger.info("  Total features: %d", len(feature_names))
-    
-    # 3. Create TreeExplainer
-    logger.info("Initializing SHAP TreeExplainer and calculating SHAP values...")
+
+    model = joblib.load(model_path)
+    estimator = _extract_xgb_estimator(model)
+
+    test_df_full, X_test_glob, fallback_pipeline = _context if _context is not None else _load_test_context(data_dir)
+    subtype_mask = (test_df_full["target_subtype"] == subtype).values
+    if not np.any(subtype_mask):
+        logger.warning("No held-out test records for %s.", subtype)
+        return None
+
+    st_scaler_path = MODELS_DIR / "precise" / f"scaler_{subtype}.pkl"
+    if st_scaler_path.exists():
+        pipeline = joblib.load(st_scaler_path)
+        sub_smiles = test_df_full.loc[subtype_mask, "canonical_smiles"].tolist()
+        X_test = np.vstack([build_features(s, pipeline) for s in sub_smiles]).astype(np.float32)
+    elif X_test_glob is not None:
+        pipeline = fallback_pipeline
+        X_test = X_test_glob[subtype_mask]
+    else:
+        pipeline = fallback_pipeline
+        sub_smiles = test_df_full.loc[subtype_mask, "canonical_smiles"].tolist()
+        X_test = np.vstack([build_features(s, pipeline) for s in sub_smiles]).astype(np.float32)
+
+    feature_names = _build_feature_names(pipeline, X_test.shape[1])
+
     explainer = shap.TreeExplainer(estimator)
-    shap_values = explainer(X_test)
-    
-    out_dir = Path("outputs/shap")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate Beeswarm plot
-    plt.figure(figsize=(10, 6))
-    shap.summary_plot(shap_values, X_test, feature_names=feature_names, show=False)
-    plt.title(f"SHAP Global Feature Importance (Beeswarm): {subtype}", fontsize=13, fontweight="bold")
-    plt.tight_layout()
-    beeswarm_file = out_dir / f"{subtype}_beeswarm.png"
-    plt.savefig(beeswarm_file, dpi=300)
-    plt.close()
-    logger.info("Saved summary beeswarm plot to %s", beeswarm_file)
-    
-    # Generate Bar plot
-    plt.figure(figsize=(10, 6))
-    shap.plots.bar(shap_values, max_display=20, show=False)
-    plt.title(f"SHAP Global Feature Importance (Bar): {subtype}", fontsize=13, fontweight="bold")
-    plt.tight_layout()
-    bar_file = out_dir / f"{subtype}_bar.png"
-    plt.savefig(bar_file, dpi=300)
-    plt.close()
-    logger.info("Saved summary bar plot to %s", bar_file)
-    
-    # Analyze the most important features to perform the Chemical Sanity Check
-    mean_abs_shaps = np.abs(shap_values.values).mean(axis=0)
-    sorted_indices = np.argsort(mean_abs_shaps)[::-1]
-    
-    top_features = []
-    logger.info("Chemical Sanity Check - Top 10 Most Important Features for %s:", subtype)
-    for rank, idx in enumerate(sorted_indices[:10], 1):
-        name = feature_names[idx]
-        val = mean_abs_shaps[idx]
-        top_features.append({"rank": rank, "feature": name, "mean_abs_shap": float(val)})
-        logger.info("  %d. %s: %.4f", rank, name, val)
-        
-    # Standard chemical analysis for Adenosine Receptor selectivities
-    expected_top = ["AromRings", "HBD", "HBA", "TPSA", "LogP", "MolWt", "NumAromaticRings", "NumHDonors", "NumHAcceptors", "MolLogP"]
-    matching_expected = [f for f in expected_top if any(f in item["feature"] for item in top_features)]
-    
-    sanity_status = "PASS"
-    sanity_message = "Top features are dominated by structurally relevant physicochemical properties."
-    if len(matching_expected) == 0:
-        sanity_status = "WARNING"
-        sanity_message = "Top features are dominated by isolated fingerprint bits rather than global physicochemical descriptors. Verify model is not learning noise."
-        
-    logger.info("Chemical Sanity for %s: %s - %s", subtype, sanity_status, sanity_message)
-    
-    report_data = {
-        "subtype": subtype,
-        "mode": mode,
+    shap_vals = explainer.shap_values(X_test)
+    if isinstance(shap_vals, list):
+        shap_vals = shap_vals[0]
+
+    mean_abs = np.abs(np.asarray(shap_vals)).mean(axis=0)
+    sorted_indices = np.argsort(mean_abs)[::-1][:top_k]
+
+    top_features = [
+        {"feature": feature_names[int(idx)], "mean_abs_shap": round(float(mean_abs[int(idx)]), 6)}
+        for idx in sorted_indices
+    ]
+
+    logger.info("Computed TreeSHAP for %s (n_eval=%d, top=%s)", subtype, len(X_test), top_features[0]["feature"])
+    return {
+        "n_eval": int(len(X_test)),
         "top_features": top_features,
-        "sanity_check": {
-            "status": sanity_status,
-            "message": sanity_message,
-            "expected_features_found": matching_expected
-        }
     }
-    
-    with open(out_dir / f"{subtype}_shap_report.json", "w") as f:
-        json.dump(report_data, f, indent=2)
-    logger.info("Saved SHAP report to %s/%s_shap_report.json", out_dir, subtype)
-    
-    return report_data
 
 
-def run_all_subtypes(mode: str = "precise"):
-    """Run SHAP analysis for ALL 4 receptor subtypes."""
-    logger.info("=" * 60)
-    logger.info("SHAP TREE ANALYSIS FOR ALL SUBTYPES")
-    logger.info("=" * 60)
-    
-    all_results = {}
+def run_all_subtypes(data_dir: str = "data/raw", top_k: int = 15) -> Dict[str, Any]:
+    """Compute global TreeSHAP summaries across all subtypes and write outputs/shap/shap_summary.json."""
+    context = _load_test_context(data_dir)
+    per_subtype: Dict[str, Any] = {}
     for st in SUBTYPES:
-        result = run_shap_analysis(subtype=st, mode=mode)
-        if result is not None:
-            all_results[st] = result
-    
-    # Save combined summary
-    out_dir = Path("outputs/shap")
+        res = run_shap_analysis(subtype=st, data_dir=data_dir, top_k=top_k, _context=context)
+        if res is not None:
+            per_subtype[st] = res
+
     summary = {
-        "n_subtypes_analyzed": len(all_results),
-        "subtypes": list(all_results.keys()),
-        "sanity_summary": {
-            st: r["sanity_check"]["status"] for st, r in all_results.items()
-        }
+        "run_id": RUN_ID,
+        "method": "TreeSHAP (XGBoost base estimator inside MAPIE CrossConformalRegressor)",
+        "per_subtype": per_subtype,
     }
-    with open(out_dir / "all_subtypes_summary.json", "w") as f:
+
+    out_dir = OUTPUTS_DIR / "shap"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "shap_summary.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
-    logger.info("All-subtype SHAP summary saved to %s", out_dir / 'all_subtypes_summary.json')
-    
-    return all_results
+    logger.info("Saved global TreeSHAP summary to %s", out_path)
+    return summary
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="SHAP Tree Explainer validation")
-    parser.add_argument("--subtype", default=None, help="Subtype to explain")
-    parser.add_argument("--mode", default="precise", help="Model mode")
-    parser.add_argument("--all", action="store_true", help="Run SHAP for ALL 4 subtypes")
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    parser = argparse.ArgumentParser(description="Global TreeSHAP Attribution Summary")
+    parser.add_argument("--subtype", choices=SUBTYPES, default=None, help="Single subtype to explain")
+    parser.add_argument("--all", action="store_true", help="Run TreeSHAP across all subtypes")
+    parser.add_argument("--data-dir", default="data/raw", help="Raw data directory")
+    parser.add_argument("--top-k", type=int, default=15, help="Number of top features to record")
     args = parser.parse_args()
-    
-    if args.all:
-        run_all_subtypes(mode=args.mode)
-    elif args.subtype:
-        run_shap_analysis(subtype=args.subtype, mode=args.mode)
+
+    if args.subtype and not args.all:
+        res = run_shap_analysis(subtype=args.subtype, data_dir=args.data_dir, top_k=args.top_k)
+        if res is not None:
+            out_dir = OUTPUTS_DIR / "shap"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"{args.subtype}_shap_summary.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump({"run_id": RUN_ID, "subtype": args.subtype, **res}, f, indent=2)
     else:
-        # Default: run all subtypes
-        run_all_subtypes(mode=args.mode)
+        run_all_subtypes(data_dir=args.data_dir, top_k=args.top_k)

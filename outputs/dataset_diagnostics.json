@@ -1,0 +1,71 @@
+{
+  "run_id": "ADENO_20261119_155050_1cf9b8",
+  "assay_filter": "Ki and Kd only (pKi)",
+  "n_raw_records": 44880,
+  "n_records_total": 16355,
+  "n_unique_molecules": 9015,
+  "n_multi_subtype_molecules": 4674,
+  "n_replicates_dropped_conflict": 106,
+  "sources_breakdown": {
+    "GPCRdb": 19357,
+    "ChEMBL_API": 18002,
+    "ChEMBL_Parents": 7521
+  },
+  "scaffold_diversity": {
+    "n_unique_scaffolds": 3272,
+    "diversity_ratio": 0.363
+  },
+  "pchembl_stats": {
+    "min": 3.37,
+    "max": 11.0,
+    "mean": 6.8897,
+    "median": 6.84,
+    "std": 1.1635,
+    "n_weak_or_inactive_lt6": 3853,
+    "pct_weak_or_inactive_lt6": 23.56
+  },
+  "standard_type_breakdown": {
+    "KI": 16158,
+    "KD": 197
+  },
+  "target_subtype_breakdown": {
+    "A1": 4576,
+    "A2A": 5371,
+    "A2B": 2002,
+    "A3": 4406
+  },
+  "per_subtype": {
+    "A1": {
+      "n_records": 4576,
+      "pchembl_min": 3.81,
+      "pchembl_max": 10.52,
+      "pchembl_mean": 6.6715854458041965,
+      "pchembl_median": 6.57,
+      "n_weak_or_inactive_lt6": 1250
+    },
+    "A2A": {
+      "n_records": 5371,
+      "pchembl_min": 3.39,
+      "pchembl_max": 11.0,
+      "pchembl_mean": 6.966153416495998,
+      "pchembl_median": 6.94,
+      "n_weak_or_inactive_lt6": 1239
+    },
+    "A2B": {
+      "n_records": 2002,
+      "pchembl_min": 3.37,
+      "pchembl_max": 10.08,
+      "pchembl_mean": 7.024053446553447,
+      "pchembl_median": 7.13,
+      "n_weak_or_inactive_lt6": 375
+    },
+    "A3": {
+      "n_records": 4406,
+      "pchembl_min": 3.4,
+      "pchembl_max": 11.0,
+      "pchembl_mean": 6.961960962324103,
+      "pchembl_median": 6.925,
+      "n_weak_or_inactive_lt6": 989
+    }
+  }
+}

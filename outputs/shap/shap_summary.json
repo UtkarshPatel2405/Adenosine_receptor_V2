@@ -1,0 +1,266 @@
+{
+  "run_id": "ADENO_20261119_150740_05de44",
+  "method": "TreeSHAP (XGBoost base estimator inside MAPIE CrossConformalRegressor)",
+  "per_subtype": {
+    "A1": {
+      "n_eval": 890,
+      "top_features": [
+        {
+          "feature": "SMR_VSA9",
+          "mean_abs_shap": 0.069846
+        },
+        {
+          "feature": "PEOE_VSA3",
+          "mean_abs_shap": 0.058004
+        },
+        {
+          "feature": "NumAliphaticCarbocycles",
+          "mean_abs_shap": 0.049592
+        },
+        {
+          "feature": "SlogP_VSA8",
+          "mean_abs_shap": 0.049476
+        },
+        {
+          "feature": "SMR_VSA5",
+          "mean_abs_shap": 0.046732
+        },
+        {
+          "feature": "MACCS_93",
+          "mean_abs_shap": 0.043229
+        },
+        {
+          "feature": "SlogP_VSA2",
+          "mean_abs_shap": 0.041281
+        },
+        {
+          "feature": "PEOE_VSA2",
+          "mean_abs_shap": 0.033644
+        },
+        {
+          "feature": "PEOE_VSA8",
+          "mean_abs_shap": 0.031586
+        },
+        {
+          "feature": "Morgan_FP_1357",
+          "mean_abs_shap": 0.027348
+        },
+        {
+          "feature": "PEOE_VSA10",
+          "mean_abs_shap": 0.026233
+        },
+        {
+          "feature": "Kappa3",
+          "mean_abs_shap": 0.026152
+        },
+        {
+          "feature": "SMR_VSA3",
+          "mean_abs_shap": 0.025467
+        },
+        {
+          "feature": "EState_VSA6",
+          "mean_abs_shap": 0.025248
+        },
+        {
+          "feature": "SMR_VSA6",
+          "mean_abs_shap": 0.024121
+        }
+      ]
+    },
+    "A2A": {
+      "n_eval": 1066,
+      "top_features": [
+        {
+          "feature": "Morgan_FP_1457",
+          "mean_abs_shap": 0.173232
+        },
+        {
+          "feature": "MACCS_84",
+          "mean_abs_shap": 0.134357
+        },
+        {
+          "feature": "SlogP_VSA8",
+          "mean_abs_shap": 0.072367
+        },
+        {
+          "feature": "SMR_VSA9",
+          "mean_abs_shap": 0.060258
+        },
+        {
+          "feature": "Morgan_FP_1153",
+          "mean_abs_shap": 0.048235
+        },
+        {
+          "feature": "EState_VSA3",
+          "mean_abs_shap": 0.041435
+        },
+        {
+          "feature": "PEOE_VSA12",
+          "mean_abs_shap": 0.037769
+        },
+        {
+          "feature": "Morgan_FP_474",
+          "mean_abs_shap": 0.037645
+        },
+        {
+          "feature": "PEOE_VSA3",
+          "mean_abs_shap": 0.035771
+        },
+        {
+          "feature": "Morgan_FP_131",
+          "mean_abs_shap": 0.030038
+        },
+        {
+          "feature": "PEOE_VSA10",
+          "mean_abs_shap": 0.029401
+        },
+        {
+          "feature": "MaxAbsEStateIndex",
+          "mean_abs_shap": 0.027721
+        },
+        {
+          "feature": "BalabanJ",
+          "mean_abs_shap": 0.026433
+        },
+        {
+          "feature": "MolLogP",
+          "mean_abs_shap": 0.023944
+        },
+        {
+          "feature": "MACCS_91",
+          "mean_abs_shap": 0.022606
+        }
+      ]
+    },
+    "A2B": {
+      "n_eval": 471,
+      "top_features": [
+        {
+          "feature": "PEOE_VSA2",
+          "mean_abs_shap": 0.161022
+        },
+        {
+          "feature": "SlogP_VSA8",
+          "mean_abs_shap": 0.096743
+        },
+        {
+          "feature": "Morgan_FP_1745",
+          "mean_abs_shap": 0.094507
+        },
+        {
+          "feature": "SlogP_VSA6",
+          "mean_abs_shap": 0.08011
+        },
+        {
+          "feature": "Morgan_FP_896",
+          "mean_abs_shap": 0.07211
+        },
+        {
+          "feature": "Morgan_FP_1530",
+          "mean_abs_shap": 0.062789
+        },
+        {
+          "feature": "PEOE_VSA11",
+          "mean_abs_shap": 0.050374
+        },
+        {
+          "feature": "BalabanJ",
+          "mean_abs_shap": 0.049885
+        },
+        {
+          "feature": "SMR_VSA9",
+          "mean_abs_shap": 0.045333
+        },
+        {
+          "feature": "PEOE_VSA10",
+          "mean_abs_shap": 0.042736
+        },
+        {
+          "feature": "Chi3v",
+          "mean_abs_shap": 0.041926
+        },
+        {
+          "feature": "HallKierAlpha",
+          "mean_abs_shap": 0.040954
+        },
+        {
+          "feature": "PEOE_VSA6",
+          "mean_abs_shap": 0.03935
+        },
+        {
+          "feature": "MaxAbsEStateIndex",
+          "mean_abs_shap": 0.035523
+        },
+        {
+          "feature": "Morgan_FP_1114",
+          "mean_abs_shap": 0.034788
+        }
+      ]
+    },
+    "A3": {
+      "n_eval": 846,
+      "top_features": [
+        {
+          "feature": "EState_VSA8",
+          "mean_abs_shap": 0.167677
+        },
+        {
+          "feature": "PEOE_VSA11",
+          "mean_abs_shap": 0.083612
+        },
+        {
+          "feature": "Chi3v",
+          "mean_abs_shap": 0.069873
+        },
+        {
+          "feature": "Morgan_FP_1956",
+          "mean_abs_shap": 0.067726
+        },
+        {
+          "feature": "Morgan_FP_1306",
+          "mean_abs_shap": 0.056319
+        },
+        {
+          "feature": "SlogP_VSA8",
+          "mean_abs_shap": 0.054227
+        },
+        {
+          "feature": "MACCS_129",
+          "mean_abs_shap": 0.045434
+        },
+        {
+          "feature": "MACCS_118",
+          "mean_abs_shap": 0.042649
+        },
+        {
+          "feature": "SMR_VSA3",
+          "mean_abs_shap": 0.034263
+        },
+        {
+          "feature": "Morgan_FP_1430",
+          "mean_abs_shap": 0.03132
+        },
+        {
+          "feature": "MACCS_86",
+          "mean_abs_shap": 0.03007
+        },
+        {
+          "feature": "BalabanJ",
+          "mean_abs_shap": 0.029603
+        },
+        {
+          "feature": "Morgan_FP_879",
+          "mean_abs_shap": 0.029593
+        },
+        {
+          "feature": "SMR_VSA9",
+          "mean_abs_shap": 0.02812
+        },
+        {
+          "feature": "NHOHCount",
+          "mean_abs_shap": 0.027762
+        }
+      ]
+    }
+  }
+}

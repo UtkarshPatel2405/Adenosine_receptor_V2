@@ -1,233 +1,148 @@
-# 🧬 Adenosine Receptor Profiler (v2.4.0)
+# Adenosine Receptor Profiler
 
-**Industrial CADD & Conformal AI Platform for Multi-Target GPCR Selectivity, Functional MoA, Safety, and Structural Pocket Biology**
+Multi-target QSAR and cheminformatics platform for predicting equilibrium binding affinity (`pKi` and derived `Ki`), subtype selectivity, conformal uncertainty bounds, and applicability domain across the four human adenosine GPCR subtypes (`A1`, `A2A`, `A2B`, `A3`).
 
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![RDKit](https://img.shields.io/badge/RDKit-2024.03+-00C7B7.svg)](https://www.rdkit.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![MAPIE Conformal](https://img.shields.io/badge/Conformal-MAPIE%2090%25-8B5CF6.svg)](https://mapie.readthedocs.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+## Overview
 
----
+Human adenosine receptors (`A1`, `A2A`, `A2B`, `A3`) are Class A GPCRs with conserved orthosteric binding pockets. This repository combines scaffold-split 3-model QSAR ensembles trained on curated human equilibrium binding data with deterministic RDKit physicochemical and SMARTS profiling modules served via a FastAPI and HTML/JS web application.
 
-## 🌐 Live Web Application
+### Pure `Ki` / `Kd` (`pKi`) Data Curation
 
-Access the production deployment of the platform:
+- **Sources**: Combines GPCRdb ligand exports (`data/raw/GPCRdb_*.xlsx`, aggregating ChEMBL and PDSP KiDatabase measurements) with human ChEMBL binding records (`CHEMBL226`, `CHEMBL251`, `CHEMBL255`, `CHEMBL256`).
+- **Standardization**: Strictly retains experimental equilibrium binding constants (`Ki` and `Kd`, converted to `pKi = -log10(M)`), excluding functional/mixed potency endpoints and using zero synthetic decoys.
+- **Structure Hygiene**: RDKit salt-stripping (largest organic fragment), charge neutralization, canonical SMILES generation, and median `pKi` deduplication per unique canonical structure and subtype.
+- **Processed Outputs**: Four subtype-specific training tables (`data/processed/A1_pki.csv`, `data/processed/A2A_pki.csv`, `data/processed/A2B_pki.csv`, `data/processed/A3_pki.csv`).
 
-* 🚀 The live web link: https://adenosinereceptorv2-b45nnjh6s9u5xrpte7wcl4.streamlit.app/
+### Predictive Modeling & Uncertainty Quantification
 
----
+- **Molecular Featurization (`src/features.py`)**: 2048-bit Morgan fingerprints (radius 2), 167-bit MACCS keys, and RDKit physicochemical descriptors filtered by missingness, variance, and pairwise correlation (`FeatureFilter`) and standardized (`StandardScaler`).
+- **3-Model Subtype Ensemble (`src/retrain_production.py`, `src/models/ensemble_engine.py`)**: Per-subtype consensus of **XGBoost**, **LightGBM**, and **Random Forest** regressors trained to predict `pKi`, with equilibrium conversion to `Ki` (`pM`, `nM`, or `uM`).
+- **Conformal Prediction Intervals (`MAPIE`)**: 5-fold cross-conformal Jackknife+ calibration (`CrossConformalRegressor`, nominal 90% coverage, `alpha = 0.10`) providing finite-sample lower and upper affinity bounds.
+- **Validation Protocol**: Out-of-distribution Bemis-Murcko scaffold split evaluated with `R2`, `RMSE`, `MAE`, and `Spearman rho`, alongside Y-randomization controls and TreeSHAP feature attribution (`src/shap_analysis.py`, `src/analysis.py`).
+- **OECD Principle 3 Applicability Domain (`src/applicability_domain.py`, `src/models/adaptive_conformal.py`)**: Maximum 2048-bit Morgan Tanimoto similarity check against the curated training fingerprints in `data/processed/train_fps.pkl` paired with physicochemical property bounds and distance-aware interval scaling.
+- **Selectivity & Provenance (`src/models/selectivity_engine.py`, `src/provenance.py`)**: Pairwise `Delta pKi` selectivity ratios across all four subtypes and SHA-256 artifact provenance tracking.
 
-## 🔬 Platform Architecture & Scientific Capabilities
+### Drug-Likeness, ADMET & 2D SMARTS Heuristics
 
-Human adenosine receptors (**A₁, A₂A, A₂B, and A₃**) belong to the class A rhodopsin-like G protein-coupled receptor (GPCR) superfamily. Because their 7-transmembrane (7-TM) orthosteric pockets share **>70% sequence homology**, designing subtype-selective ligands without off-target liabilities is a central challenge in computer-aided drug discovery (CADD).
+The following modules are deterministic RDKit calculations, empirical formulas, or 2D SMARTS rule screens rather than models trained on experimental efficacy or toxicity endpoints:
 
-This platform delivers an end-to-end computational screening and pharmacology profiling suite:
+- **Drug-Likeness & ADMET (`src/models/admet_engine.py`, `src/chem_utils.py`)**: Lipinski Rule-of-5, **Veber's Rules** (`TPSA <= 140 A^2` and `Rotatable Bonds <= 10`), PAINS structural alerts, RDKit QED, Pfizer 6-parameter CNS-MPO (`0.0 - 6.0`), Clark's empirical `LogBB`, and MMFF94 3D conformer generation.
+- **2D SMARTS Heuristics (clearly labeled as rule-based screens)**:
+  - **Efficacy Motif Hints (`src/models/efficacy_engine.py`)**: 2D SMARTS matching for ribose/carboxamide agonist motifs versus xanthine/triazolopyrimidine antagonist cores, mapped to canonical `Gs` (`A2A`, `A2B`) or `Gi/o` (`A1`, `A3`) coupling descriptions.
+  - **Orthosteric Pharmacophore Screen (`src/models/interaction_engine.py`)**: 2D SMARTS screening for `Asn6.55` hydrogen-bonding motifs, `Trp6.48` purine-ribose toggle motifs, aromatic ring count (`Phe168` pi-stacking), and stereocenter annotations.
+  - **Cardiac & Anti-Target Safety Alerts (`src/models/safety_engine.py`)**: Rule-based potency thresholds on predicted `A1` and `A3` affinity paired with 2D SMARTS screening for xanthine/purine scaffolds linked to phosphodiesterase (`PDE`) cross-reactivity.
+- **Reference Structures (`src/presets.py`)**: Curated reference ligand presets and GPCRdb / RCSB PDB receptor structure metadata rendered interactively in the web client.
 
-```
-                                  [ Input: Query Molecule SMILES ]
-                                                  │
-                                  ┌───────────────┴───────────────┐
-                                  ▼                               ▼
-                      [ RDKit Feature Engine ]        [ OECD Principle 3 AD ]
-                      • 2048-bit Morgan FP            • Tanimoto scaffold proximity
-                      • 167 MACCS Keys Frag           • MW, LogP, TPSA, RotB gates
-                      • Curated 41 Physicochemical
-                                  │                               │
-                                  └───────────────┬───────────────┘
-                                                  ▼
-                              [ Multi-Model Quad-Tree Ensemble ]
-                              • XGBoost + LightGBM + Random Forest
-                              • MAPIE 5-Fold Cross-Conformal Bounds
-                              • 7-TM Joint Covariance Regularization
-                                                  │
-                ┌───────────────────┬─────────────┴─────┬───────────────────┐
-                ▼                   ▼                   ▼                   ▼
-      [ Subtype Affinity ]  [ Functional MoA ]  [ Safety Liabilities ]  [ ADMET / CNS-MPO ]
-      • pChEMBL & Ki (nM)   • Full/Partial Ag   • A1 Bradycardia        • Pfizer 6-Param MPO
-      • ΔpChEMBL Deltas     • Antagonist / Inv  • A3 Mast Cell Risk     • Blood-Brain Barrier
-      • Rank Hierarchy      • Gs vs Gi Cascade  • PDE1-10 Cross-Rx      • LogBB Permeability
-```
+## Installation (Python 3.12)
 
----
+Python `3.12` is required (`>=3.12,<3.14`).
 
-### 1. Multi-Target Affinity & Thermodynamic $K_i$ Conversion
-* **Subtype Spectrum**: Predicts binding affinity ($p\text{ChEMBL} = -\log_{10} K_i [\text{M}]$) simultaneously across all 4 human subtypes.
-* **Thermodynamic Conversion**: Converts logarithmic $p\text{ChEMBL}$ into physiological equilibrium dissociation constants ($K_i$ in $\text{nM}$, $\mu\text{M}$, or $\text{pM}$).
-* **Multi-Task 7-TM Covariance**: Applies an orthosteric covariance matrix to capture structural coupling and reduce orthogonal prediction noise across homologous pockets.
+### Option A: Conda (Recommended)
 
-### 2. Finite-Sample Adaptive Conformal Uncertainty (90% Confidence)
-* **Distribution-Free Guarantees**: Calibrated with MAPIE 5-fold cross-conformal Jackknife+ inference.
-* **Scaffold-Adaptive Heteroscedastic Scaling**: Dynamically scales interval width based on topological distance to training chemotypes (core scaffolds vs scaffold hops).
-
-### 3. Functional Mode of Action (MoA) & G-Protein Signaling
-* **Efficacy Classification**: Structural SMARTS classification identifying ribose/carboxamide activation motifs (Full Agonist / Partial Agonist) versus xanthine/triazolopyrimidine cores (Neutral Antagonist / Inverse Agonist).
-* **Signaling Cascade Profiling**: Maps downstream effectors:
-  * $A_{2A} / A_{2B}$: $G_s$-coupled $\rightarrow$ Adenylyl Cyclase activation $\rightarrow$ $\text{cAMP}\uparrow$ (Vasodilation, Immunosuppression).
-  * $A_1 / A_3$: $G_{i/o}$-coupled $\rightarrow$ Adenylyl Cyclase inhibition $\rightarrow$ $\text{cAMP}\downarrow$ (AV node slowing, Analgesia).
-
-### 4. 3D Orthosteric Pocket Biology & Toggle Switches
-* **Conserved Hydrogen-Bond Anchor**: Audits bidentate H-bonding to $\text{Asn}^{6.55}$ ($\text{Asn253}$ in $A_{2A}$, $\text{Asn254}$ in $A_1$, $\text{Asn250}$ in $A_3$).
-* **Transmission Toggle Switch**: Evaluates steric engagement with $\text{Trp}^{6.48}$ triggering the outward swing of TM6.
-* **Chiral Stereocenter Audit**: Flags natural D-ribose vs L-ribose stereochemical potency cliffs ($>1000\times$ activity shift).
-
-### 5. Cardiac & Anti-Target Safety Panel
-* **$A_1$ Bradycardia Liability**: Alerts for sub-nanomolar $A_1$ off-target potency associated with atrioventricular (AV) block.
-* **$A_3$ Mast Cell Degranulation**: Quantifies histamine release and bronchoconstriction risk.
-* **PDE1–10 Cross-Reactivity**: RDKit SMARTS screening for xanthine/purine cross-inhibition of phosphodiesterases.
-
-### 6. Pfizer CNS-MPO & Blood-Brain Barrier (BBB) Permeability
-* **Pfizer 6-Parameter Multi-Parameter Optimization (CNS-MPO)**: Calculates composite score ($0.0 - 6.0$) from $\text{CLogP}$, $\text{CLogD}$, $\text{MW}$, $\text{TPSA}$, $\text{HBD}$, and $\text{p}K_a$.
-* **Clark's LogBB**: Predicts brain-to-plasma partitioning ($\log BB = 0.152\cdot\text{CLogP} - 0.0148\cdot\text{TPSA} + 0.139$).
-
----
-
-## 📊 Benchmark Metrics (Out-of-Distribution Scaffold Test Sets)
-
-Models were validated strictly on held-out **Bemis–Murcko scaffold partitions** (no training scaffold overlap with test sets):
-
-| Receptor Subtype | Test Samples ($n$) | Test $R^2$ | MAE (log units) | RMSE | 90% Conformal Coverage |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| **Human $A_1$** | 884 | **0.692** | **0.385** | 0.512 | 91.2% |
-| **Human $A_{2A}$** | 1,237 | **0.718** | **0.362** | 0.485 | 92.0% |
-| **Human $A_{2B}$** | 404 | **0.684** | **0.395** | 0.528 | 89.8% |
-| **Human $A_3$** | 961 | **0.675** | **0.410** | 0.542 | 91.5% |
-| **Global Ensemble** | **3,486** | **0.693** | **0.390** | **0.517** | **91.2%** |
-
-### Statistical Null Controls & Interpretability
-* **Y-Randomization Tests (20 Permutations)**: Real model $R^2 = 0.693$ collapsed to shuffled null $R^2 = -0.102 \pm 0.041$, ruling out chance correlation.
-* **Global TreeSHAP Feature Attributions**: Confirms heavy dependence on pharmacophore descriptors ($\text{MolLogP}$, $\text{TPSA}$, $\text{HBD}$, aromatic carbocycles, partial charges) matching GPCR crystallographic binding pocket chemistry.
-
----
-
-## 🖥️ Streamlit 2.0 Web Application Layout
-
-The graphical dashboard is organized into specialized workspaces:
-
-1. **Single Molecule Profiler**:
-   * **Tab 1: Overview & $K_i$**: Primary 4-subtype affinity table, experimental ground-truth alignment, multi-model consensus, CSV/JSON/SDF export.
-   * **Tab 2: 2D/3D Conformer**: RDKit 2D depiction & interactive MMFF94 energy-minimized 3D conformer viewer (`3Dmol.js`).
-   * **Tab 3: 4-Subtype Selectivity**: Multilateral polar radar polygon and complete pairwise $\Delta p\text{ChEMBL}$ differential matrix.
-   * **Tab 4: Mode of Action (MoA)**: Efficacy classification, $G$-protein cascade diagram, and $\text{Asn}^{6.55}/\text{Trp}^{6.48}$ pocket engagement.
-   * **Tab 5: Safety & CNS-MPO**: $A_1$ cardiac bradycardia, $A_3$ mast cell liability, PDE cross-reactivity, and Pfizer CNS-MPO BBB score.
-   * **Tab 6: Drug-Likeness (QED)**: Quantitative Estimation of Drug-likeness, Lipinski Rule-of-5 compliance, and PAINS substructure liability filter.
-   * **Tab 7: Chemical Space & Neighbors**: Nearest training-set neighbors by Tanimoto similarity with interactive 2D bubble scatter.
-   * **Tab 8: Explainable AI (TreeSHAP)**: Local Shapley additive explanations breaking down per-feature contributions to subtype binding.
-   * **Tab 9: Provenance Audit**: SHA-256 cryptographic digests verifying model binaries, scalers, and reproducible datasets.
-2. **Batch Virtual Screening**: High-throughput library screening with automated numeric CSV downloads.
-3. **Model Benchmark Suite**: Publication-grade performance charts, conformal quartile calibrations, TreeSHAP bar plots, and dataset downloads.
-
----
-
-## 📦 Quickstart & Installation
-
-### Option 1: UV Package Manager (Recommended, Fast)
+#### 1. Create environment directly from `environment.yml`
 
 ```bash
-# Clone the repository
-git clone https://github.com/UtkarshPatel2405/Adenosine_receptor_V2.git
-cd Adenosine_receptor_V2
-
-# Create virtual environment and sync dependencies
-uv venv
-uv pip install -r requirements.txt
-
-# Launch Streamlit web dashboard
-uv run streamlit run streamlit_app.py
+conda env create -f environment.yml && conda activate adenosine-profiler && python app.py
 ```
 
-### Option 2: Standard Python & Pip
+#### 2. Step-by-step `conda` + `pip` setup
+
+Installing `rdkit` from `conda-forge` avoids native binary compilation issues on Python 3.12:
 
 ```bash
-# Create and activate virtual environment
+conda create -n adenosine-profiler -c conda-forge python=3.12 rdkit -y && conda activate adenosine-profiler && pip install -r requirements.txt && python app.py
+```
+
+### Option B: Python `venv` + `pip`
+
+```bash
 python -m venv .venv
-# On Windows:
+
+# Windows (PowerShell or cmd)
 .venv\Scripts\activate
-# On Linux/macOS:
+
+# Linux / macOS
 source .venv/bin/activate
 
-# Install requirements
 pip install -r requirements.txt
-
-# Launch application
-streamlit run streamlit_app.py
+python app.py
 ```
 
-### Option 3: Docker Deployment
+To install optional training and development extras (`optuna`, `pytest`, `ruff`) from `pyproject.toml`:
 
 ```bash
-# Build Docker image
-docker build -t adenosine-profiler .
-
-# Run container on port 8501
-docker run -p 8501:8501 adenosine-profiler
+pip install -e ".[train,dev]"
 ```
 
----
+## Accessing & Sharing the Web App
 
-## 📂 Repository Structure
+Start the FastAPI server with:
 
-```
-Adenosine_receptor_V2/
-├── streamlit_app.py           # Streamlit 2.0 Web Application Entrypoint
-├── Dockerfile                 # Containerization & Hugging Face deployment
-├── pyproject.toml             # Package build specification & metadata
-├── requirements.txt           # Production Python dependency lock
-├── src/                       # Core Architecture & Analytical Modules
-│   ├── predictor.py           # Master inference orchestrator
-│   ├── features.py            # 2048-bit Morgan, MACCS, & curated 41 descriptors
-│   ├── chem_utils.py          # RDKit 2D SVG, MMFF94 3D conformers, PAINS, QED
-│   ├── config.py              # Central hyperparameters, paths, and run IDs
-│   ├── data_loader.py         # Curated ChEMBL/GPCRdb loading & deduplication
-│   ├── applicability_domain.py# OECD Principle 3 quantitative domain gates
-│   ├── provenance.py          # Deterministic SHA-256 cryptographic hashing
-│   ├── models/                # Core Pharmacology & Inference Engines
-│   │   ├── model_loader.py    # Model, scaler, and db_lookup caching loader
-│   │   ├── ensemble_engine.py # Quad-tree inference & conformal boundaries
-│   │   ├── selectivity_engine.py # Pairwise differential matrix (ΔpChEMBL)
-│   │   ├── efficacy_engine.py # Functional MoA (Agonist vs Antagonist)
-│   │   ├── interaction_engine.py # 3D pocket anchors (Asn6.55, Trp6.48, Phe168)
-│   │   ├── safety_engine.py   # Cardiac AV block & PDE off-target safety
-│   │   ├── admet_engine.py    # Pfizer CNS-MPO & Blood-Brain Barrier (LogBB)
-│   │   └── adaptive_conformal.py # Scaffold-adaptive conformal calibration
-│   └── ui/                    # Streamlit Modern UI Components & Tabs
-│       ├── styles.py          # Custom CSS, dark theme, and typography
-│       ├── presets.py         # Canonical drug presets & benchmark records
-│       ├── renderers_3d.py    # 3Dmol.js conformer renderers
-│       ├── tab_overview.py    # Tab 1: Executive summary & 4-subtype grid
-│       ├── tab_structure.py   # Tab 2: 2D/3D conformer coordinates
-│       ├── tab_selectivity.py # Tab 3: Selectivity radar polygon & deltas
-│       ├── tab_efficacy.py    # Tab 4: Functional MoA & toggle switches
-│       ├── tab_safety.py      # Tab 5: Safety panel & Pfizer CNS-MPO
-│       ├── tab_druglikeness.py# Tab 6: QED & PAINS substructure filters
-│       ├── tab_neighbors.py   # Tab 7: Nearest training neighbors scatter
-│       ├── tab_shap.py        # Tab 8: TreeSHAP local feature explanations
-│       ├── tab_provenance.py  # Tab 9: SHA-256 provenance audit trail
-│       ├── tab_batch.py       # Batch virtual screening pipeline
-│       └── tab_benchmarks.py  # Model Benchmark Suite & publication metrics
-├── data/                      # Dataset Repositories (ChEMBL & GPCRdb)
-│   ├── raw/                   # Raw bioactivity CSVs
-│   └── processed/             # Cleaned lookup dictionaries & training sets
-├── models/                    # Trained Production Models (XGBoost, LGB, RF, Scaler)
-├── outputs/                   # Benchmark reports, calibration curves, SHAP JSONs
-└── tests/                     # Automated pytest test suites
+```bash
+python app.py
 ```
 
----
+- **Local URL**: `http://localhost:8000`
+- **Shareable public HTTPS link from localhost (port forwarding)**:
+  1. **Cloudflare Quick Tunnel (no account required)**:
+     ```bash
+     cloudflared tunnel --url http://localhost:8000
+     ```
+  2. **VS Code Ports panel**: Open the **Ports** tab in VS Code, forward port `8000`, and set its visibility to **Public**.
 
-## 📜 Citation & License
+## Benchmark Metrics (Out-of-Distribution Scaffold Split)
 
-If you use this platform, models, or methodology in your computational drug discovery research, please cite:
+Metrics below reflect the Bemis-Murcko scaffold split evaluation (`outputs/evaluation_report.json`) for the pure `pKi` 3-model ensemble (`XGBoost + LightGBM + Random Forest`).
 
-```bibtex
-@article{Patel2026AdenosineProfiler,
-  title={Multi-Target Conformal Profiling and Selectivity Mapping Across Human Adenosine GPCRs with Scaffold-Adaptive Uncertainty Bounds},
-  author={Patel, Utkarsh},
-  year={2026},
-  publisher={GitHub},
-  journal={GitHub Repository},
-  howpublished={\url{https://github.com/UtkarshPatel2405/Adenosine_receptor_V2}}
-}
+<!-- BENCHMARKS_TABLE -->
+All metrics below were generated from a single reproducible run (`run_id: ADENO_20261119_150621_4be4fd`) using **4 independent per-subtype feature scalers** (`models/precise/scaler_A1.pkl`, `scaler_A2A.pkl`, `scaler_A2B.pkl`, `scaler_A3.pkl`, each fitted strictly on that subtype's training split) and **5-fold out-of-fold validation-weighted consensus** (`models/precise/consensus_weights.json`) on `44,880` merged raw equilibrium binding (`Ki`/`Kd`) records (`GPCRdb`: `19,357`; `ChEMBL API`: `18,002`; `ChEMBL Parents`: `7,521`), deduplicated after salt-stripping, charge neutralization, and IQR-aware conflict filtering (`106` discordant groups dropped where `n = 2` with `spread > 2.0` or `n >= 3` with `IQR > 1.5`) into `16,355` unique `(molecule, subtype)` pairs across `9,015` unique molecules (`3,272` Bemis-Murcko scaffolds; `4,674` multi-subtype ligands; `3,853` weak/inactive entries with `pKi < 6.0`; `KI = 16,158`, `KD = 197`), partitioned strictly `80/20` with zero scaffold overlap (`13,082` train / `3,273` test records). In addition, **Model 2 (Use Case A: Functional Activity `pIC50 / pEC50`)** is trained independently on human `IC50`/`EC50` records across `data/processed/{A1,A2A,A2B,A3}_functional.csv` with its own 4 per-subtype scalers (`models/functional/scaler_{subtype}.pkl`).
+
+| Target / Scope | Train N | Test N | Consensus R2 (XGB / LGB / RF) | Spearman rho (XGB / LGB / RF) | Consensus MAE | Consensus RMSE | 90% Coverage | Y-Rand Shuffled Mean R2 |
+| --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| Human A1 (`A1_pki.csv`) | 3,686 | 890 | 0.477 (0.492 / 0.490 / 0.334) | 0.711 (0.707 / 0.708 / 0.679) | 0.611 | 0.785 | 86.0% | -0.081 (p = 0.048) |
+| Human A2A (`A2A_pki.csv`) | 4,305 | 1,066 | 0.647 (0.659 / 0.650 / 0.558) | 0.809 (0.812 / 0.805 / 0.771) | 0.550 | 0.716 | 87.4% | -0.090 (p = 0.048) |
+| Human A2B (`A2B_pki.csv`) | 1,531 | 471 | 0.725 (0.733 / 0.727 / 0.675) | 0.837 (0.838 / 0.835 / 0.816) | 0.522 | 0.653 | 88.1% | -0.171 (p = 0.048) |
+| Human A3 (`A3_pki.csv`) | 3,560 | 846 | 0.585 (0.593 / 0.581 / 0.492) | 0.760 (0.763 / 0.753 / 0.711) | 0.572 | 0.733 | 87.2% | -0.096 (p = 0.048) |
+| **Overall Pooled** | **13,082** | **3,273** | **0.610** (0.621 / 0.613 / 0.515) | **0.786** (0.788 / 0.782 / 0.741) | **0.568** | **0.731** | **87.1%** | Mean 90% CI Width = 2.130 |
+
+Mean dummy regressor baseline across the identical holdout split (`N = 3,273`): `R2 = 0.000`, `MAE = 0.961`, `RMSE = 1.171`.
+<!-- /BENCHMARKS_TABLE -->
+
+## Reproducibility & Pipeline
+
+To run the full pure `pKi` curation, 3-model ensemble training, 5-fold MAPIE conformal calibration, Y-randomization, TreeSHAP, and scaffold-split evaluation pipeline, followed by the automated test suite:
+
+```bash
+# 1. Run full curation, training, calibration, and evaluation pipeline
+python -m src.run_pipeline
+
+# 2. Run automated tests
+pytest
 ```
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+## Repository Layout
+
+```text
+Adenosine_Receptor_Profiler-main/
+├── app.py                  # FastAPI web server and REST API entrypoint
+├── web/                    # HTML/CSS/JS frontend application
+├── environment.yml         # Conda Python 3.12 environment specification (conda-forge)
+├── requirements.txt        # Core runtime Python dependencies
+├── pyproject.toml          # Package metadata, optional extras, ruff/mypy/pytest config
+├── README.md               # Project documentation
+├── LICENSE                 # MIT License
+├── src/                    # Curation, featurization, training, evaluation, and inference
+│   ├── presets.py          # Curated reference ligands and GPCRdb/PDB structure metadata
+│   ├── analysis.py         # Nearest-neighbor lookup and local TreeSHAP helpers
+│   └── models/             # Ensemble loaders, conformal scaling, ADMET, and SMARTS screens
+├── data/
+│   ├── raw/                # GPCRdb_*.xlsx and raw ChEMBL source files
+│   └── processed/          # A1_pki.csv, A2A_pki.csv, A2B_pki.csv, A3_pki.csv, train_fps.pkl
+├── models/                 # Trained XGBoost, LightGBM, Random Forest models and scaler
+├── outputs/                # Evaluation JSONs, Y-randomization, SHAP, and diagnostics
+└── tests/                  # Pytest unit and integration suite
+```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

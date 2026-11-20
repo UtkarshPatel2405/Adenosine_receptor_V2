@@ -1,252 +1,378 @@
+"""Multi-source equilibrium binding (Ki/Kd -> pKi) loader, standardizer, and deduplicator."""
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-from rdkit import Chem
 
 from src.chem_utils import canonicalize
 from src.config import (
-    RAW_DATA_DIR, PROCESSED_DATA_DIR, SUBTYPES, VALID_STANDARD_TYPES,
-    REQUIRED_CONFIDENCE, DECOY_PCHEMBL, LOG_LEVEL,
+    CHEMBL_TARGETS,
+    PROCESSED_DATA_DIR,
+    REQUIRED_CONFIDENCE,
+    SUBTYPES,
 )
 
 logger = logging.getLogger(__name__)
 
-
 SUBTYPE_MAP = {
-    "A1R": "A1", "A2AR": "A2A", "A2BR": "A2B", "A3R": "A3",
-    "A1": "A1", "A2A": "A2A", "A2B": "A2B", "A3": "A3",
+    "A1R": "A1",
+    "A2AR": "A2A",
+    "A2BR": "A2B",
+    "A3R": "A3",
+    "A1": "A1",
+    "A2A": "A2A",
+    "A2B": "A2B",
+    "A3": "A3",
 }
 
+_CHEMBL_ID_TO_SUBTYPE = {v: k for k, v in CHEMBL_TARGETS.items()}
+_GPCRDB_FILES = {st: f"GPCRdb_{st}.xlsx" for st in SUBTYPES}
+_GPCRDB_VALID_TYPES = {"KI", "PKI", "KD", "PKD"}
+_CHEMBL_VALID_TYPES = {"KI", "KD"}
+_GPCRDB_FUNCTIONAL_TYPES = {"IC50", "PIC50", "EC50", "PEC50"}
+_CHEMBL_FUNCTIONAL_TYPES = {"IC50", "EC50"}
+_CONFLICT_SPREAD_THRESHOLD = 2.0
 _canonicalize_smiles = canonicalize
 
 
+def _normalize_binding_type(val: str) -> str:
+    s = str(val).strip().upper()
+    if s in {"KI", "PKI"}:
+        return "KI"
+    if s in {"KD", "PKD"}:
+        return "KD"
+    if s in {"IC50", "PIC50"}:
+        return "IC50"
+    if s in {"EC50", "PEC50"}:
+        return "EC50"
+    return s
 
 
-def load_all_raw_data(data_dir: str | Path) -> pd.DataFrame:
-    raw_path = Path(data_dir)
-    dfs = []
-
-    chembl_file = raw_path / "AR_all_unique_parents_with_smiles.csv"
-    if chembl_file.exists():
-        df_chembl = pd.read_csv(chembl_file)
-        keep_cols = ["smiles", "pchembl_value", "standard_type", "TAG",
-                      "standard_relation", "assay_type", "confidence_score", "targets_hit"]
-        df_chembl = df_chembl[[c for c in keep_cols if c in df_chembl.columns]].copy()
-        dfs.append(df_chembl)
-        logger.info("Loaded ChEMBL CSV: %d rows.", len(df_chembl))
-
-    for excel_file in raw_path.glob("GPCRdb_*.xlsx"):
-        if excel_file.stat().st_size < 1000:
-            logger.info("Skipping Git LFS pointer file %s", excel_file)
+def _load_gpcrdb_sources(raw_path: Path, valid_types: set[str] = _GPCRDB_VALID_TYPES) -> list[pd.DataFrame]:
+    frames: list[pd.DataFrame] = []
+    for st, fname in _GPCRDB_FILES.items():
+        fpath = raw_path / fname
+        if not fpath.exists() or fpath.stat().st_size < 1000:
             continue
-        try:
-            df_gpcr = pd.read_excel(excel_file)
-        except Exception as e:
-            logger.warning("Could not read %s: %s. Skipping.", excel_file, e)
-            continue
-        tag = excel_file.stem.split("_")[1] + "R"
+        df = pd.read_excel(fpath)
+        species = df["Species"].astype(str).str.strip()
+        relation = df["Activity Relation"].astype(str).str.strip()
+        act_type = df["Activity Type"].astype(str).str.strip().str.upper()
+        pval = pd.to_numeric(df["p-value (-log)"], errors="coerce")
 
-        rename_map = {
-            "Smiles": "smiles", "p-value (-log)": "pchembl_value",
-            "Activity Type": "standard_type", "Activity Relation": "standard_relation",
-            "Assay Type": "assay_type",
+        mask = (
+            (species == "Human")
+            & (relation == "=")
+            & (act_type.isin(valid_types))
+            & (pval.notna())
+        )
+        filtered = df.loc[mask].copy()
+        if filtered.empty:
+            continue
+
+        out = pd.DataFrame(
+            {
+                "smiles": filtered["Smiles"].astype(str).values,
+                "pchembl_value": pd.to_numeric(filtered["p-value (-log)"], errors="coerce").values,
+                "target_subtype": st,
+                "standard_type": [_normalize_binding_type(t) for t in filtered["Activity Type"].values],
+                "standard_relation": "=",
+                "source_db": "GPCRdb",
+            }
+        )
+        logger.info("Loaded GPCRdb %s (%s): %d rows.", st, fname, len(out))
+        frames.append(out)
+    return frames
+
+
+def _load_chembl_parents_source(raw_path: Path, valid_types: set[str] = _CHEMBL_VALID_TYPES) -> Optional[pd.DataFrame]:
+    fpath = raw_path / "AR_all_unique_parents_with_smiles.csv"
+    if not fpath.exists():
+        return None
+    df = pd.read_csv(fpath)
+
+    relation = df["standard_relation"].astype(str).str.strip()
+    std_type = df["standard_type"].astype(str).str.strip().str.upper()
+    pval = pd.to_numeric(df["pchembl_value"], errors="coerce")
+
+    mask = (
+        (relation == "=")
+        & (std_type.isin(valid_types))
+        & (pval.notna())
+    )
+    if "confidence_score" in df.columns:
+        conf = pd.to_numeric(df["confidence_score"], errors="coerce")
+        mask = mask & (conf >= REQUIRED_CONFIDENCE)
+
+    filtered = df.loc[mask].copy()
+    if filtered.empty:
+        return None
+
+    if "target_subtype" in filtered.columns:
+        subtypes = filtered["target_subtype"].astype(str).str.strip().map(SUBTYPE_MAP)
+    elif "TAG" in filtered.columns:
+        subtypes = filtered["TAG"].astype(str).str.strip().map(SUBTYPE_MAP)
+    elif "target_chembl_id" in filtered.columns:
+        subtypes = filtered["target_chembl_id"].astype(str).str.strip().map(_CHEMBL_ID_TO_SUBTYPE)
+    else:
+        raise ValueError("AR_all_unique_parents_with_smiles.csv missing subtype identifier column.")
+
+    out = pd.DataFrame(
+        {
+            "smiles": filtered["smiles"].astype(str).values,
+            "pchembl_value": pd.to_numeric(filtered["pchembl_value"], errors="coerce").values,
+            "target_subtype": subtypes.values,
+            "standard_type": filtered["standard_type"].astype(str).str.strip().str.upper().values,
+            "standard_relation": "=",
+            "source_db": "ChEMBL_Parents",
         }
-        df_gpcr = df_gpcr.rename(columns=rename_map)
+    )
+    logger.info("Loaded ChEMBL Parents (%s): %d rows.", fpath.name, len(out))
+    return out
 
-        if "standard_type" in df_gpcr.columns:
-            _std_type_map = {"pKi": "KI", "pKd": "KD", "pIC50": "IC50", "pEC50": "EC50", "pAC50": "AC50"}
-            df_gpcr["standard_type"] = df_gpcr["standard_type"].astype(str).str.strip().replace(_std_type_map)
 
-        df_gpcr["TAG"] = tag
-        df_gpcr["confidence_score"] = 9
+def _load_chembl_api_source(raw_path: Path, valid_types: set[str] = _CHEMBL_VALID_TYPES) -> Optional[pd.DataFrame]:
+    fpath = raw_path / "chembl_human_ar_bioactivities.csv"
+    if not fpath.exists():
+        return None
+    df = pd.read_csv(fpath)
 
-        if "assay_type" in df_gpcr.columns:
-            df_gpcr["assay_type"] = df_gpcr["assay_type"].replace({"Binding": "B", "Functional": "F"})
+    relation = df["standard_relation"].astype(str).str.strip()
+    std_type = df["standard_type"].astype(str).str.strip().str.upper()
+    pval = pd.to_numeric(df["pchembl_value"], errors="coerce")
 
-        for col in ["smiles", "pchembl_value", "standard_type", "TAG",
-                      "standard_relation", "assay_type", "confidence_score", "targets_hit"]:
-            if col not in df_gpcr.columns:
-                df_gpcr[col] = None
+    mask = (
+        (relation == "=")
+        & (std_type.isin(valid_types))
+        & (pval.notna())
+    )
+    filtered = df.loc[mask].copy()
+    if filtered.empty:
+        return None
 
-        df_gpcr["targets_hit"] = df_gpcr["TAG"]
-        df_gpcr = df_gpcr[["smiles", "pchembl_value", "standard_type", "TAG",
-                            "standard_relation", "assay_type", "confidence_score", "targets_hit"]].copy()
-        dfs.append(df_gpcr)
-        logger.info("Loaded GPCRdb Excel %s: %d rows.", excel_file.name, len(df_gpcr))
+    if "target_subtype" in filtered.columns:
+        subtypes = filtered["target_subtype"].astype(str).str.strip().map(SUBTYPE_MAP)
+    elif "target_chembl_id" in filtered.columns:
+        subtypes = filtered["target_chembl_id"].astype(str).str.strip().map(_CHEMBL_ID_TO_SUBTYPE)
+    elif "TAG" in filtered.columns:
+        subtypes = filtered["TAG"].astype(str).str.strip().map(SUBTYPE_MAP)
+    else:
+        raise ValueError("chembl_human_ar_bioactivities.csv missing subtype identifier column.")
 
-    if not dfs:
-        raise ValueError(f"No valid datasets found in {data_dir}")
+    out = pd.DataFrame(
+        {
+            "smiles": filtered["smiles"].astype(str).values,
+            "pchembl_value": pd.to_numeric(filtered["pchembl_value"], errors="coerce").values,
+            "target_subtype": subtypes.values,
+            "standard_type": filtered["standard_type"].astype(str).str.strip().str.upper().values,
+            "standard_relation": "=",
+            "source_db": "ChEMBL_API",
+        }
+    )
+    logger.info("Loaded ChEMBL API (%s): %d equilibrium Ki/Kd rows.", fpath.name, len(out))
+    return out
 
-    return pd.concat(dfs, ignore_index=True)
+
+def load_all_raw_data(data_dir: str | Path, assay_mode: str = "binding") -> pd.DataFrame:
+    """Load and merge all verified raw sources (GPCRdb, ChEMBL_Parents, ChEMBL_API) for binding or functional mode."""
+    raw_path = Path(data_dir)
+    frames: list[pd.DataFrame] = []
+    is_func = str(assay_mode).lower().strip() == "functional"
+    gpcrdb_types = _GPCRDB_FUNCTIONAL_TYPES if is_func else _GPCRDB_VALID_TYPES
+    chembl_types = _CHEMBL_FUNCTIONAL_TYPES if is_func else _CHEMBL_VALID_TYPES
+
+    frames.extend(_load_gpcrdb_sources(raw_path, valid_types=gpcrdb_types))
+
+    parents_df = _load_chembl_parents_source(raw_path, valid_types=chembl_types)
+    if parents_df is not None:
+        frames.append(parents_df)
+
+    api_df = _load_chembl_api_source(raw_path, valid_types=chembl_types)
+    if api_df is not None:
+        frames.append(api_df)
+
+    if not frames:
+        raise ValueError(f"No valid datasets found in {data_dir} for assay_mode={assay_mode}")
+
+    merged = pd.concat(frames, ignore_index=True)
+    logger.info("Merged %d raw rows across %d source tables (assay_mode=%s).", len(merged), len(frames), assay_mode)
+    return merged
+
+
+def _build_lookup(df: pd.DataFrame) -> dict[str, dict[str, float]]:
+    lookup: dict[str, dict[str, float]] = {}
+    for smi, sub, val in zip(
+        df["canonical_smiles"].values,
+        df["target_subtype"].values,
+        df["pchembl_value"].values,
+    ):
+        lookup.setdefault(smi, {})[sub] = float(val)
+    return lookup
 
 
 def load_and_clean(
     data_dir: str | Path = "data/raw",
-    save_lookup_path: str | None = None,
+    save_lookup_path: str | Path | None = None,
     mode: str = "precise",
     target_role: str = "all",
     target_endpoint: str = "all",
     include_decoys: bool = False,
-):
-    """
-    Load, filter, deduplicate, and prepare bioactivity data.
+    save_subtype_csvs: bool = False,
+    subtype_csv_dir: str | Path | None = None,
+    assay_mode: str = "binding",
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]]]:
+    """Load, filter (binding Ki/Kd or functional IC50/EC50), canonicalize, conflict-filter, and median-aggregate AR data."""
+    if include_decoys:
+        logger.warning("Synthetic decoys are disabled by scientific policy; ignoring include_decoys=True.")
 
-    CRITICAL FIX — Mutual Decoy Fallacy resolved:
-    - The old code assigned pChEMBL=4.0 to UNTESTED subtypes for multi-target
-      compounds, creating false negatives (missing-data != inactive).
-    - Now, only explicit measured values from ChEMBL/GPCRdb and verified
-      P2Y structural decoys are included.
-    - Compounds missing data for a subtype are simply absent from that
-      subtype's training set (NaN gap — handled later by feature filtering).
-    """
-    if save_lookup_path is None:
-        save_lookup_path = str(PROCESSED_DATA_DIR / "db_lookup.json")
+    is_func = str(assay_mode).lower().strip() == "functional"
+    valid_chembl_types = _CHEMBL_FUNCTIONAL_TYPES if is_func else _CHEMBL_VALID_TYPES
 
-    logger.info("Loading data from %s (role=%s, endpoint=%s, decoys=%s)",
-                 data_dir, target_role, target_endpoint, include_decoys)
+    logger.info(
+        "Loading %s data from %s (mode=%s, role=%s, endpoint=%s)",
+        "functional IC50/EC50" if is_func else "equilibrium Ki/Kd",
+        data_dir,
+        mode,
+        target_role,
+        target_endpoint,
+    )
 
-    df = load_all_raw_data(data_dir)
+    df = load_all_raw_data(data_dir, assay_mode=assay_mode)
+    raw_count = len(df)
+    raw_sources_breakdown = {
+        str(k): int(v) for k, v in df["source_db"].value_counts().items()
+    }
 
     df["standard_type"] = df["standard_type"].astype(str).str.upper().str.strip()
     df["standard_relation"] = df["standard_relation"].astype(str).str.strip()
-    df["assay_type"] = df["assay_type"].astype(str).str.upper().str.strip()
-    df["confidence_score"] = pd.to_numeric(df["confidence_score"], errors="coerce")
     df["pchembl_value"] = pd.to_numeric(df["pchembl_value"], errors="coerce")
+    df["target_subtype"] = df["target_subtype"].astype(str).str.strip().map(SUBTYPE_MAP)
 
-    initial_count = len(df)
-
-    df = df[
-        (df["standard_relation"] == "=") &
-        (df["confidence_score"] >= REQUIRED_CONFIDENCE) &
-        (df["assay_type"].isin({"B", "F"})) &
-        (df["standard_type"].isin(VALID_STANDARD_TYPES)) &
-        (df["pchembl_value"].notna())
-    ].copy()
+    mask = (
+        (df["standard_relation"] == "=")
+        & (df["standard_type"].isin(valid_chembl_types))
+        & (df["target_subtype"].isin(SUBTYPES))
+        & (df["pchembl_value"].notna())
+        & (df["pchembl_value"] >= 3.0)
+        & (df["pchembl_value"] <= 12.5)
+    )
+    df = df.loc[mask].copy()
 
     if target_endpoint != "all":
-        if target_endpoint.upper() in {"KI", "KD"}:
-            df = df[df["standard_type"].isin({"KI", "KD"})].copy()
-        elif target_endpoint.upper() in {"IC50", "EC50"}:
-            df = df[df["standard_type"].isin({"IC50", "EC50"})].copy()
+        ep = target_endpoint.upper().strip()
+        if ep in valid_chembl_types:
+            df = df[df["standard_type"] == ep].copy()
 
-    df["TAG"] = df["TAG"].astype(str).str.strip()
-    df["target_subtype"] = df["TAG"].map(SUBTYPE_MAP)
-    df = df[df["target_subtype"].notna()].copy()
-
-    df["canonical_smiles"] = df["smiles"].apply(canonicalize)
+    unique_raw_smiles = df["smiles"].dropna().unique()
+    canon_map = {s: canonicalize(s) for s in unique_raw_smiles}
+    df["canonical_smiles"] = df["smiles"].map(canon_map)
     df = df[df["canonical_smiles"].notna()].copy()
 
     post_filter_count = len(df)
-    logger.info("Scientific filters: %d raw rows -> %d high-quality rows.", initial_count, post_filter_count)
-
-    # Vectorized known_targets building (replaces iterrows)
-    known_targets = {}
-    _hits_col = df["targets_hit"].fillna("").astype(str)
-    _tag_col = df["TAG"].astype(str)
-    _smi_col = df["canonical_smiles"]
-    for smi, hits, tag in zip(_smi_col.values, _hits_col.values, _tag_col.values):
-        subtypes = set()
-        for hit in hits.split(";"):
-            hit = hit.strip()
-            if hit in SUBTYPE_MAP:
-                subtypes.add(SUBTYPE_MAP[hit])
-        if tag in SUBTYPE_MAP:
-            subtypes.add(SUBTYPE_MAP[tag])
-        if smi not in known_targets:
-            known_targets[smi] = set()
-        known_targets[smi].update(subtypes)
-
-    barcodes = []
-    for smi in df["canonical_smiles"]:
-        barcode = canonicalize(smi)
-        barcodes.append(barcode)
-    df["barcode"] = barcodes
-
-    df["_priority"] = np.where(df["standard_type"].isin({"KI", "KD"}), 0, 1)
-    min_priority = df.groupby(["barcode", "target_subtype"])["_priority"].transform("min")
-    best_df = df[df["_priority"] == min_priority]
-
-    medians = best_df.groupby(["barcode", "target_subtype"])["pchembl_value"].median().reset_index()
-    orig_maxes = df.groupby(["barcode", "target_subtype"])["pchembl_value"].max().reset_index()
-
-    shifts_df = pd.merge(medians, orig_maxes, on=["barcode", "target_subtype"], suffixes=("_med", "_max"))
-    shifts = (shifts_df["pchembl_value_max"] - shifts_df["pchembl_value_med"]).abs().tolist()
-
-    df_deduped = best_df.drop_duplicates(subset=["barcode", "target_subtype"], keep="first").copy()
-    df_deduped = df_deduped.drop(columns=["pchembl_value", "_priority"])
-    df_deduped = pd.merge(df_deduped, medians, on=["barcode", "target_subtype"]).reset_index(drop=True)
-    df = df.drop(columns=["_priority"])
-    final_count = len(df_deduped)
-
-    mean_shift = sum(shifts) / len(shifts) if shifts else 0.0
-    max_shift = max(shifts) if shifts else 0.0
-
-    n_unique_barcodes = df_deduped["barcode"].nunique()
-    logger.info("Barcode dedup: %d rows -> %d unique (barcode, subtype) pairs.", post_filter_count, final_count)
-    logger.info("Unique molecular barcodes: %d", n_unique_barcodes)
-    logger.info("Collapse stats: mean shift=%.3f, max shift=%.3f", mean_shift, max_shift)
-
-    # Vectorized lookup building (replaces iterrows)
-    lookup = (
-        df_deduped.groupby("canonical_smiles")
-        .apply(lambda g: dict(zip(g["target_subtype"], g["pchembl_value"].astype(float))),
-               include_groups=False)
-        .to_dict()
+    logger.info(
+        "Quality & canonicalization filters: %d merged rows -> %d valid canonical rows.",
+        raw_count,
+        post_filter_count,
     )
 
-    if include_decoys:
-        logger.info("Loading P2Y structural decoys...")
-        decoy_rows = []
+    primary_ep = "IC50" if is_func else "KI"
+    secondary_ep = "EC50" if is_func else "KD"
+    grouped = df.groupby(["canonical_smiles", "target_subtype"], sort=True)
+    agg = grouped.agg(
+        pKi_median=("pchembl_value", "median"),
+        pKi_min=("pchembl_value", "min"),
+        pKi_max=("pchembl_value", "max"),
+        pKi_q25=("pchembl_value", lambda s: float(s.quantile(0.25))),
+        pKi_q75=("pchembl_value", lambda s: float(s.quantile(0.75))),
+        n_replicates=("pchembl_value", "size"),
+        sources=("source_db", lambda s: ";".join(sorted(set(s.astype(str))))),
+        standard_type=("standard_type", lambda s: primary_ep if primary_ep in set(s) else secondary_ep),
+    ).reset_index()
 
-        p2y_path = PROCESSED_DATA_DIR / "p2y_decoys.csv"
-        if p2y_path.exists():
-            logger.info("Ingesting P2Y decoys from %s", p2y_path)
-            p2y_df = pd.read_csv(p2y_path)
-            # Vectorized barcode registration
-            barcodes = [canonicalize(s) for s in p2y_df["canonical_smiles"].values]
-            # Vectorized decoy row construction via cross-join
-            for idx, (smi, bc) in enumerate(zip(p2y_df["canonical_smiles"].values, barcodes)):
-                for sub in SUBTYPES:
-                    decoy_rows.append({
-                        "TAG": f"{sub}R",
-                        "canonical_smiles": smi,
-                        "pchembl_value": DECOY_PCHEMBL,
-                        "target_subtype": sub,
-                        "standard_type": "DECOY_P2Y",
-                        "barcode": bc,
-                    })
-            logger.info("Ingested %d P2Y structural decoy rows.", len(decoy_rows))
+    agg["spread"] = agg["pKi_max"] - agg["pKi_min"]
+    agg["iqr"] = agg["pKi_q75"] - agg["pKi_q25"]
+    conflict_mask = (
+        ((agg["n_replicates"] == 2) & (agg["spread"] > _CONFLICT_SPREAD_THRESHOLD))
+        | ((agg["n_replicates"] >= 3) & (agg["iqr"] > 1.5))
+    )
+    n_dropped_conflict = int(conflict_mask.sum())
+    if n_dropped_conflict > 0:
+        logger.info(
+            "Dropped %d severely conflicting (molecule, subtype) groups with replicate spread > %.1f log units.",
+            n_dropped_conflict,
+            _CONFLICT_SPREAD_THRESHOLD,
+        )
 
-        if decoy_rows:
-            decoy_df = pd.DataFrame(decoy_rows)
-            df_deduped = pd.concat([df_deduped, decoy_df], ignore_index=True)
-            logger.info("Total decoy rows after concat: %d", len(decoy_df))
+    df_deduped = agg.loc[~conflict_mask].copy().reset_index(drop=True)
+    df_deduped["pKi"] = df_deduped["pKi_median"].astype(float)
+    df_deduped["pchembl_value"] = df_deduped["pKi"]
+    df_deduped["TAG"] = df_deduped["target_subtype"].astype(str) + "R"
+    df_deduped["barcode"] = df_deduped["canonical_smiles"]
 
-            # Vectorized lookup rebuild after decoy concat
-            lookup = (
-                df_deduped.groupby("canonical_smiles")
-                .apply(lambda g: dict(zip(g["target_subtype"], g["pchembl_value"].astype(float))),
-                       include_groups=False)
-                .to_dict()
-            )
+    logger.info(
+        "Deduplication: %d rows -> %d unique (molecule, subtype) pairs across %d compounds (dropped %d conflicts).",
+        post_filter_count,
+        len(df_deduped),
+        df_deduped["canonical_smiles"].nunique(),
+        n_dropped_conflict,
+    )
 
+    if save_subtype_csvs or subtype_csv_dir is not None:
+        out_dir = Path(subtype_csv_dir) if subtype_csv_dir is not None else PROCESSED_DATA_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "functional" if is_func else "pki"
+        csv_cols = ["canonical_smiles", "pKi", "target_subtype", "n_replicates", "sources"]
+        for st in SUBTYPES:
+            sub_df = df_deduped.loc[df_deduped["target_subtype"] == st, csv_cols].reset_index(drop=True)
+            sub_path = out_dir / f"{st}_{suffix}.csv"
+            sub_df.to_csv(sub_path, index=False)
+            logger.info("Saved %s subtype dataset (%d rows) to %s", st, len(sub_df), sub_path)
 
+    lookup = _build_lookup(df_deduped)
 
-    Path(save_lookup_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(save_lookup_path, "w", encoding="utf-8") as f:
-        json.dump(lookup, f, indent=2, sort_keys=True)
+    if save_lookup_path is not None:
+        out_path = Path(save_lookup_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(lookup, f, indent=2, sort_keys=True)
+        logger.info("Saved DB lookup (%d molecules) to %s", len(lookup), out_path)
 
-    keep_cols = ["TAG", "canonical_smiles", "pchembl_value", "target_subtype", "standard_type", "barcode"]
-    available_cols = [c for c in keep_cols if c in df_deduped.columns]
-    df_deduped = df_deduped[available_cols].copy()
-
-    return df_deduped, lookup
+    keep_cols = [
+        "TAG",
+        "canonical_smiles",
+        "pchembl_value",
+        "pKi",
+        "target_subtype",
+        "standard_type",
+        "n_replicates",
+        "sources",
+        "barcode",
+    ]
+    out_df = df_deduped[keep_cols].copy()
+    out_df.attrs["assay_filter"] = (
+        "Functional IC50 and EC50 only (pIC50/pEC50)"
+        if is_func
+        else "Equilibrium binding Ki and Kd only (pKi)"
+    )
+    out_df.attrs["n_raw_records"] = int(raw_count)
+    out_df.attrs["n_replicates_dropped_conflict"] = n_dropped_conflict
+    out_df.attrs["raw_sources_breakdown"] = raw_sources_breakdown
+    return out_df, lookup
 
 
 if __name__ == "__main__":
-    df, lookup = load_and_clean("data/raw", mode="precise", include_decoys=True)
-    logger.info("Final dataset: %d rows, %d unique SMILES", len(df), df["canonical_smiles"].nunique())
-    logger.info("Per-subtype distribution:\n%s", df["target_subtype"].value_counts().to_string())
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    cleaned_df, _ = load_and_clean("data/raw", save_lookup_path=None, include_decoys=False)
+    logger.info(
+        "Final dataset: %d rows, %d unique molecules (conflicts dropped: %d)",
+        len(cleaned_df),
+        cleaned_df["canonical_smiles"].nunique(),
+        cleaned_df.attrs.get("n_replicates_dropped_conflict", 0),
+    )
+    logger.info("Per-subtype counts:\n%s", cleaned_df["target_subtype"].value_counts().to_string())

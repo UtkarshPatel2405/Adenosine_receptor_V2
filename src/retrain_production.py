@@ -1,382 +1,537 @@
+"""Production training of 5-fold MAPIE CrossConformal XGBoost, LightGBM, and compact RandomForest models."""
+import argparse
 import json
 import logging
-import os
-import pickle
-import shutil
+import platform
 from pathlib import Path
+from typing import Any, Dict
 
+import joblib
+import lightgbm as lgb
+import mapie
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
+import sklearn
 import xgboost as xgb
+from mapie.regression import CrossConformalRegressor
+from rdkit import __version__ as rdkit_version
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score, mean_absolute_error
-
-
-class AverageEnsemble:
-    """Equal-weight average of base model predictions. Pickle-friendly."""
-    def predict(self, X):
-        return np.mean(X, axis=1)
-
-from src.data_loader import load_and_clean
-from src.features import build_feature_matrix, build_features
-from src.scaffold_split import split_smiles_globally
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import KFold, cross_val_predict
 
 from src.config import (
-    SUBTYPES, MODELS_DIR, PROCESSED_DATA_DIR, OUTPUTS_DIR,
-    SCAFFOLD_SPLIT_SEED, SCAFFOLD_TEST_SIZE, RF_N_ESTIMATORS,
-    RF_MAX_DEPTH, RF_MAX_FEATURES, MAPIE_CV_FOLDS, MAPIE_CONFIDENCE, LOG_LEVEL, RUN_ID,
+    LOG_LEVEL,
+    MAPIE_CONFIDENCE,
+    MAPIE_CV_FOLDS,
+    MODELS_DIR,
+    OUTPUTS_DIR,
+    PROCESSED_DATA_DIR,
+    RUN_ID,
+    RUN_TIMESTAMP,
+    SCAFFOLD_SPLIT_SEED,
+    SCAFFOLD_TEST_SIZE,
+    SUBTYPES,
 )
-from mapie.regression import CrossConformalRegressor
+from src.data_loader import load_and_clean
+from src.features import build_feature_matrix
+from src.scaffold_split import split_smiles_globally
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PARAMS = {
-    "A1": {"n_estimators": 800, "max_depth": 6, "learning_rate": 0.03,
-           "subsample": 0.8, "colsample_bytree": 0.7, "min_child_weight": 3,
-           "reg_alpha": 0.1, "reg_lambda": 1.5, "gamma": 0.1},
-    "A2A": {"n_estimators": 1000, "max_depth": 7, "learning_rate": 0.03,
-            "subsample": 0.8, "colsample_bytree": 0.7, "min_child_weight": 2,
-            "reg_alpha": 0.05, "reg_lambda": 1.0, "gamma": 0.05},
-    "A2B": {"n_estimators": 800, "max_depth": 6, "learning_rate": 0.03,
-            "subsample": 0.8, "colsample_bytree": 0.7, "min_child_weight": 2,
-            "reg_alpha": 0.1, "reg_lambda": 1.0, "gamma": 0.05},
-    "A3": {"n_estimators": 1000, "max_depth": 7, "learning_rate": 0.03,
-           "subsample": 0.8, "colsample_bytree": 0.7, "min_child_weight": 2,
-           "reg_alpha": 0.05, "reg_lambda": 1.0, "gamma": 0.05},
+DEFAULT_PARAMS: Dict[str, Dict[str, Any]] = {
+    "A1": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "colsample_bytree": 0.6,
+        "min_child_weight": 4,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+        "gamma": 0.1,
+    },
+    "A2A": {
+        "n_estimators": 600,
+        "max_depth": 6,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "colsample_bytree": 0.6,
+        "min_child_weight": 4,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+        "gamma": 0.1,
+    },
+    "A2B": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "colsample_bytree": 0.6,
+        "min_child_weight": 4,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+        "gamma": 0.1,
+    },
+    "A3": {
+        "n_estimators": 600,
+        "max_depth": 6,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "colsample_bytree": 0.6,
+        "min_child_weight": 4,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+        "gamma": 0.1,
+    },
 }
 
-LGBM_DEFAULT_PARAMS = {
-    "A1": {"n_estimators": 800, "max_depth": 6, "learning_rate": 0.03, "num_leaves": 40,
-           "subsample": 0.8, "colsample_bytree": 0.7, "min_child_samples": 10,
-           "reg_alpha": 0.1, "reg_lambda": 1.5},
-    "A2A": {"n_estimators": 1000, "max_depth": 7, "learning_rate": 0.03, "num_leaves": 50,
-            "subsample": 0.8, "colsample_bytree": 0.7, "min_child_samples": 5,
-            "reg_alpha": 0.05, "reg_lambda": 1.0},
-    "A2B": {"n_estimators": 800, "max_depth": 6, "learning_rate": 0.03, "num_leaves": 40,
-            "subsample": 0.8, "colsample_bytree": 0.7, "min_child_samples": 5,
-            "reg_alpha": 0.1, "reg_lambda": 1.0},
-    "A3": {"n_estimators": 1000, "max_depth": 7, "learning_rate": 0.03, "num_leaves": 50,
-           "subsample": 0.8, "colsample_bytree": 0.7, "min_child_samples": 5,
-           "reg_alpha": 0.05, "reg_lambda": 1.0},
+LGBM_DEFAULT_PARAMS: Dict[str, Dict[str, Any]] = {
+    "A1": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.6,
+        "min_child_samples": 15,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+    },
+    "A2A": {
+        "n_estimators": 600,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.6,
+        "min_child_samples": 15,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+    },
+    "A2B": {
+        "n_estimators": 500,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.6,
+        "min_child_samples": 15,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+    },
+    "A3": {
+        "n_estimators": 600,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "learning_rate": 0.04,
+        "subsample": 0.8,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.6,
+        "min_child_samples": 15,
+        "reg_alpha": 0.2,
+        "reg_lambda": 2.0,
+    },
 }
 
-def train_conformal_model(base_model, X_train, y_train, cv):
-    mapie = CrossConformalRegressor(
+
+def train_conformal_model(base_model, X_train: np.ndarray, y_train: np.ndarray, cv: int = MAPIE_CV_FOLDS):
+    """Wrap a scikit-learn compatible regressor in MAPIE CrossConformalRegressor (Jackknife+)."""
+    conformal = CrossConformalRegressor(
         estimator=base_model,
         cv=cv,
         confidence_level=MAPIE_CONFIDENCE,
         method="plus",
         n_jobs=1,
     )
-    mapie.fit_conformalize(X_train, y_train)
+    conformal.fit_conformalize(X_train, y_train)
     logger.info("Conformal model trained: cv=%d, confidence=%.2f", cv, MAPIE_CONFIDENCE)
-    return mapie
-
-def _run_optuna_hpo(X_tr, y_tr, smiles_tr, subtype: str, n_trials: int = 30) -> dict:
-    """
-    Optuna HPO with 3-fold Scaffold-Grouped Cross-Validation (GroupKFold).
-    Ensures that validation folds contain completely unseen scaffolds,
-    forcing Optuna to optimize for scaffold generalizability rather than memorization.
-    """
-    try:
-        import optuna
-        from sklearn.model_selection import GroupKFold
-        from src.scaffold_split import _murcko_scaffold_smiles
-        optuna.logging.set_verbosity(optuna.logging.WARNING)
-    except ImportError:
-        logger.warning("Required modules for Scaffold HPO not available. Using default params.")
-        return DEFAULT_PARAMS[subtype]
-
-    # Compute scaffold for each molecule in the training set
-    logger.info("  Computing Murcko scaffolds for GroupKFold HPO...")
-    scaffolds = [str(_murcko_scaffold_smiles(smi)) for smi in smiles_tr]
-    
-    # Map scaffold strings to unique integer group IDs
-    unique_scaf = list(set(scaffolds))
-    scaf_to_id = {scaf: idx for idx, scaf in enumerate(unique_scaf)}
-    groups = np.array([scaf_to_id[scaf] for scaf in scaffolds])
-
-    def objective(trial):
-        params = {
-            "n_estimators": trial.suggest_int("n_estimators", 300, 1200),
-            # Restrict depth to promote generalization (scaffold-robust trees are shallower)
-            "max_depth": trial.suggest_int("max_depth", 3, 6),
-            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.08, log=True),
-            "subsample": trial.suggest_float("subsample", 0.7, 0.9),
-            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 0.8),
-            "min_child_weight": trial.suggest_int("min_child_weight", 2, 8),
-            # High L1/L2 regularization to control fingerprint overfitting
-            "reg_alpha": trial.suggest_float("reg_alpha", 0.05, 2.0, log=True),
-            "reg_lambda": trial.suggest_float("reg_lambda", 1.0, 5.0),
-            "gamma": trial.suggest_float("gamma", 0.0, 0.4),
-            "tree_method": "hist",
-            "n_jobs": 1,  # Prevent OpenMP deadlock on Windows background runner
-            "random_state": 42,
-        }
-        
-        # 3-fold GroupKFold by scaffold
-        gkf = GroupKFold(n_splits=3)
-        scores = []
-        for train_idx, val_idx in gkf.split(X_tr, y_tr, groups=groups):
-            X_fold_tr, y_fold_tr = X_tr[train_idx], y_tr[train_idx]
-            X_fold_val, y_fold_val = X_tr[val_idx], y_tr[val_idx]
-            
-            model = xgb.XGBRegressor(**params)
-            model.fit(X_fold_tr, y_fold_tr)
-            preds = model.predict(X_fold_val)
-            scores.append(r2_score(y_fold_val, preds))
-            
-        return float(np.mean(scores))
-
-    study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=42))
-    study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
-
-    best = study.best_params
-    logger.info("  HPO %s (Scaffold CV): best CV R²=%.4f, params=%s", subtype, study.best_value, best)
-    return best
+    return conformal
 
 
-def retrain_production_models(data_path: str = "data/raw"):
-    """
-    Full-dataset training with MAPIE conformal wrapping.
-
-    CRITICAL FIX:
-    - The old code saved raw XGBRegressors without conformal wrapping.
-    - Now wraps every XGBoost model with CrossConformalRegressor (Jackknife+)
-      to produce real uncertainty estimates.
-    - The cost: slightly higher training time (5-fold CV inside MAPIE).
-    - The benefit: mathematically valid 90% prediction intervals.
-    """
-    logger.info("=" * 60)
-    logger.info("PRODUCTION TRAINING WITH MAPIE CONFORMAL WRAPPING")
-    logger.info("=" * 60)
+def _build_train_lookup(train_df: pd.DataFrame) -> dict[str, dict[str, float]]:
+    lookup: dict[str, dict[str, float]] = {}
+    for smi, sub, val in zip(
+        train_df["smiles"].values,
+        train_df["target_subtype"].values,
+        train_df["pchembl_value"].values,
+    ):
+        lookup.setdefault(smi, {})[sub] = float(val)
+    return lookup
 
 
-
-    cv_report_path = OUTPUTS_DIR / "nested_cv" / "merged_report.json"
-    best_params_per_subtype = {}
-    run_hpo = False
-
-    if cv_report_path.exists():
-        logger.info("Found Nested CV report at %s. Loading HPO params...", cv_report_path)
-        with open(cv_report_path) as f:
-            cv_data = json.load(f)
-        for st in SUBTYPES:
-            if st in cv_data:
-                best_params_per_subtype[st] = cv_data[st]["median_params"]
-                logger.info("  %s: %s", st, best_params_per_subtype[st])
+def _compute_validation_weights(
+    base_xgb,
+    base_lgb,
+    rf_model,
+    X_tr: np.ndarray,
+    y_tr: np.ndarray,
+    cv_folds: int = MAPIE_CV_FOLDS,
+) -> tuple[Dict[str, float], Dict[str, float]]:
+    """Compute validation-weighted consensus weights from 5-fold out-of-fold RMSE (and RF OOB RMSE)."""
+    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    oof_xgb = cross_val_predict(base_xgb, X_tr, y_tr, cv=kf, n_jobs=1)
+    oof_lgb = cross_val_predict(base_lgb, X_tr, y_tr, cv=kf, n_jobs=1)
+    rmse_xgb = float(np.sqrt(mean_squared_error(y_tr, oof_xgb)))
+    rmse_lgb = float(np.sqrt(mean_squared_error(y_tr, oof_lgb)))
+    if hasattr(rf_model, "oob_prediction_") and rf_model.oob_prediction_ is not None:
+        rmse_rf = float(np.sqrt(mean_squared_error(y_tr, rf_model.oob_prediction_)))
     else:
-        logger.info("No Nested CV HPO params found. Will run Optuna HPO per subtype.")
-        run_hpo = True  # Defer to per-subtype HPO after data loading
+        oof_rf = cross_val_predict(rf_model, X_tr, y_tr, cv=kf, n_jobs=1)
+        rmse_rf = float(np.sqrt(mean_squared_error(y_tr, oof_rf)))
 
-    df, _ = load_and_clean(data_path, mode="precise", include_decoys=True)
+    inv_scores = {
+        "XGBoost": 1.0 / max(rmse_xgb, 1e-3) ** 4,
+        "LightGBM": 1.0 / max(rmse_lgb, 1e-3) ** 4,
+        "RandomForest": 1.0 / max(rmse_rf, 1e-3) ** 4,
+    }
+    total_inv = sum(inv_scores.values())
+    weights = {k: round(v / total_inv, 4) for k, v in inv_scores.items()}
+    rmses = {
+        "XGBoost": round(rmse_xgb, 4),
+        "LightGBM": round(rmse_lgb, 4),
+        "RandomForest": round(rmse_rf, 4),
+    }
+    return weights, rmses
+
+
+def retrain_functional_models(
+    data_path: str = "data/raw",
+    train_smiles: set[str] | None = None,
+    test_smiles: set[str] | None = None,
+) -> Dict[str, Any]:
+    """Train Use Case A: Functional Activity (pIC50 / pEC50) 3-model ensemble with 4 per-subtype scalers."""
+    logger.info("Starting Use Case A: Functional Activity (pIC50/pEC50) 3-model training...")
+    df_func, _ = load_and_clean(
+        data_path,
+        save_lookup_path=str(PROCESSED_DATA_DIR / "db_lookup_functional.json"),
+        mode="precise",
+        include_decoys=False,
+        save_subtype_csvs=True,
+        assay_mode="functional",
+    )
+    df_func = df_func.rename(columns={"canonical_smiles": "smiles"})
+
+    if train_smiles is None or test_smiles is None:
+        split_path = PROCESSED_DATA_DIR / "global_split.json"
+        if split_path.exists():
+            with open(split_path, "r", encoding="utf-8") as f:
+                sp = json.load(f)
+            train_smiles = set(sp["train"])
+            test_smiles = set(sp["test"])
+        else:
+            tr_s, te_s = split_smiles_globally(
+                sorted(df_func["smiles"].unique()),
+                test_size=SCAFFOLD_TEST_SIZE,
+                random_state=SCAFFOLD_SPLIT_SEED,
+            )
+            train_smiles, test_smiles = set(tr_s), set(te_s)
+
+    unseen_func = sorted(set(df_func["smiles"].unique()) - (train_smiles | test_smiles))
+    if unseen_func:
+        tr_u, te_u = split_smiles_globally(
+            unseen_func, test_size=SCAFFOLD_TEST_SIZE, random_state=SCAFFOLD_SPLIT_SEED
+        )
+        train_smiles = set(train_smiles) | set(tr_u)
+        test_smiles = set(test_smiles) | set(te_u)
+
+    train_df = df_func[df_func["smiles"].isin(train_smiles)].reset_index(drop=True)
+    test_df = df_func[df_func["smiles"].isin(test_smiles)].reset_index(drop=True)
+
+    train_lookup_func = _build_train_lookup(train_df)
+    with open(PROCESSED_DATA_DIR / "db_lookup_functional_train.json", "w", encoding="utf-8") as f:
+        json.dump(train_lookup_func, f, indent=2, sort_keys=True)
+
+    func_dir = MODELS_DIR / "functional"
+    func_dir.mkdir(parents=True, exist_ok=True)
+
+    weights_func: Dict[str, Dict[str, float]] = {}
+    summary_func: Dict[str, Any] = {}
+
+    for st in SUBTYPES:
+        tr_sub = train_df[train_df["target_subtype"] == st].reset_index(drop=True)
+        te_sub = test_df[test_df["target_subtype"] == st].reset_index(drop=True)
+        if len(tr_sub) < 30:
+            logger.warning("Skipping functional %s: insufficient training rows (%d)", st, len(tr_sub))
+            continue
+
+        st_scaler_path = func_dir / f"scaler_{st}.pkl"
+        X_tr, X_te, st_pipeline = build_feature_matrix(
+            tr_sub,
+            te_sub,
+            smiles_col="smiles",
+            save_to_disk=False,
+            scaler_path=st_scaler_path,
+        )
+        joblib.dump(st_pipeline, st_scaler_path, compress=3)
+
+        y_tr = tr_sub["pchembl_value"].to_numpy(dtype=float)
+        y_te = te_sub["pchembl_value"].to_numpy(dtype=float)
+
+        xgb_params = dict(DEFAULT_PARAMS[st])
+        xgb_params.update({"tree_method": "hist", "n_jobs": 1, "random_state": 42})
+        base_xgb = xgb.XGBRegressor(**xgb_params)
+        xgb_conf = train_conformal_model(base_xgb, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
+
+        lgb_params = dict(LGBM_DEFAULT_PARAMS[st])
+        lgb_params.update({"verbose": -1, "n_jobs": 1, "random_state": 42})
+        base_lgb = lgb.LGBMRegressor(**lgb_params)
+        lgb_conf = train_conformal_model(base_lgb, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
+
+        rf_model = RandomForestRegressor(
+            n_estimators=40,
+            max_depth=10,
+            min_samples_leaf=5,
+            max_features="sqrt",
+            n_jobs=-1,
+            random_state=42,
+        )
+        rf_conf = train_conformal_model(rf_model, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
+
+        w_st, rmses_st = _compute_validation_weights(base_xgb, base_lgb, rf_model, X_tr, y_tr)
+        weights_func[st] = w_st
+
+        joblib.dump(xgb_conf, func_dir / f"xgboost_{st}_production.pkl", compress=3)
+        joblib.dump(lgb_conf, func_dir / f"lgb_{st}_production.pkl", compress=3)
+        joblib.dump(rf_conf, func_dir / f"rf_{st}_production.pkl", compress=3)
+
+        if len(y_te) > 0:
+            p_xgb = np.asarray(xgb_conf.predict(X_te), dtype=float).ravel()
+            p_lgb = np.asarray(lgb_conf.predict(X_te), dtype=float).ravel()
+            p_rf = np.asarray(rf_conf.predict(X_te), dtype=float).ravel()
+            p_cons = w_st["XGBoost"] * p_xgb + w_st["LightGBM"] * p_lgb + w_st["RandomForest"] * p_rf
+            r2_c = float(r2_score(y_te, p_cons))
+            mae_c = float(mean_absolute_error(y_te, p_cons))
+        else:
+            r2_c = mae_c = 0.0
+
+        summary_func[st] = {
+            "train_size": int(len(y_tr)),
+            "test_size": int(len(y_te)),
+            "consensus_r2": round(r2_c, 4),
+            "consensus_mae": round(mae_c, 4),
+            "consensus_weights": w_st,
+            "oof_rmse": rmses_st,
+        }
+        logger.info("Functional %s trained: N_train=%d, N_test=%d, Consensus R2=%.3f, weights=%s", st, len(y_tr), len(y_te), r2_c, w_st)
+
+    with open(func_dir / "consensus_weights.json", "w", encoding="utf-8") as f:
+        json.dump(weights_func, f, indent=2)
+    return summary_func
+
+
+def retrain_production_models(data_path: str = "data/raw") -> Dict[str, Any]:
+    """Train conformal XGBoost + LightGBM and compact RandomForest models with 4 independent per-subtype scalers."""
+    logger.info("Starting production 3-model training (XGBoost + LightGBM + RandomForest) with 4 independent subtype scalers...")
+
+    df, _ = load_and_clean(
+        data_path,
+        save_lookup_path=str(PROCESSED_DATA_DIR / "db_lookup.json"),
+        mode="precise",
+        include_decoys=False,
+        save_subtype_csvs=True,
+        assay_mode="binding",
+    )
+    assay_filter = df.attrs.get("assay_filter", "Equilibrium binding Ki and Kd only (pKi)")
+    n_dropped_conflict = int(df.attrs.get("n_replicates_dropped_conflict", 0))
+    raw_sources = sorted(df.attrs.get("raw_sources_breakdown", {}).keys())
+    dataset_source = " + ".join(raw_sources) if raw_sources else "GPCRdb + ChEMBL_Parents + ChEMBL_API"
+
     df = df.rename(columns={"canonical_smiles": "smiles"})
 
-    if "barcode" in df.columns:
-        logger.info("BARCODE AUDIT: %d rows, %d unique barcodes",
-                     len(df), df["barcode"].nunique())
-
+    unique_smiles = sorted(df["smiles"].unique())
     train_smiles, test_smiles = split_smiles_globally(
-        df["smiles"].unique(),
+        unique_smiles,
         test_size=SCAFFOLD_TEST_SIZE,
         random_state=SCAFFOLD_SPLIT_SEED,
     )
 
+    PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     split_path = PROCESSED_DATA_DIR / "global_split.json"
-    split_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(split_path, "w") as f:
-        json.dump({"train": list(train_smiles), "test": list(test_smiles)}, f)
+    with open(split_path, "w", encoding="utf-8") as f:
+        json.dump({"train": sorted(train_smiles), "test": sorted(test_smiles)}, f, indent=2)
     logger.info("Saved global scaffold split to %s", split_path)
 
     train_df = df[df["smiles"].isin(train_smiles)].reset_index(drop=True)
     test_df = df[df["smiles"].isin(test_smiles)].reset_index(drop=True)
 
-    # Vectorized train_lookup building (replaces iterrows)
-    train_lookup = (
-        train_df.groupby("smiles")
-        .apply(lambda g: dict(zip(g["target_subtype"], g["pchembl_value"].astype(float))),
-               include_groups=False)
-        .to_dict()
-    )
+    train_lookup = _build_train_lookup(train_df)
     train_lookup_path = PROCESSED_DATA_DIR / "db_lookup_train.json"
-    with open(train_lookup_path, "w") as f:
+    with open(train_lookup_path, "w", encoding="utf-8") as f:
         json.dump(train_lookup, f, indent=2, sort_keys=True)
     logger.info("Saved train-only lookup (%d molecules) to %s", len(train_lookup), train_lookup_path)
 
-    X_train_glob, X_test_glob, pipeline = build_feature_matrix(
-        train_df, test_df, smiles_col="smiles"
-    )
-
     models_precise_dir = MODELS_DIR / "precise"
     models_precise_dir.mkdir(parents=True, exist_ok=True)
+    scaler_path = models_precise_dir / "scaler_precise.pkl"
 
-    with open(models_precise_dir / f"scaler_precise.pkl", "wb") as f:
-        pickle.dump(pipeline, f)
-    with open(MODELS_DIR / "scaler.pkl", "wb") as f:
-        pickle.dump(pipeline, f)
-    logger.info("Saved production scaler pipelines.")
+    X_train_glob, _, _ = build_feature_matrix(
+        train_df,
+        test_df,
+        smiles_col="smiles",
+        save_to_disk=True,
+        scaler_path=scaler_path,
+    )
 
-    with open(PROCESSED_DATA_DIR / "features_train.pkl", "wb") as f:
-        pickle.dump(X_train_glob, f)
-    with open(PROCESSED_DATA_DIR / "features_test.pkl", "wb") as f:
-        pickle.dump(X_test_glob, f)
-    logger.info("Saved feature matrices.")
-
-    training_summary = {}
+    per_subtype_summary: Dict[str, Any] = {}
+    consensus_weights_map: Dict[str, Dict[str, float]] = {}
 
     for st in SUBTYPES:
-        logger.info("\nTraining %s...", st)
+        logger.info("Training independent scaler and conformal models for subtype %s...", st)
+        tr_sub = train_df[train_df["target_subtype"] == st].reset_index(drop=True)
+        te_sub = test_df[test_df["target_subtype"] == st].reset_index(drop=True)
 
-        train_mask = (train_df["target_subtype"] == st).values
-        test_mask = (test_df["target_subtype"] == st).values
-
-        X_tr = X_train_glob[train_mask]
-        y_tr = train_df.loc[train_mask, "pchembl_value"].values
-
-        X_te = X_test_glob[test_mask]
-        y_te = test_df.loc[test_mask, "pchembl_value"].values
-
-        if len(y_tr) < 50:
-            logger.warning("SKIP %s: insufficient data (%d samples).", st, len(y_tr))
+        if len(tr_sub) < 50:
+            logger.warning("Skipping %s: insufficient training samples (%d).", st, len(tr_sub))
             continue
 
-        logger.info("  Samples: train=%d, test=%d", len(y_tr), len(y_te))
+        st_scaler_path = models_precise_dir / f"scaler_{st}.pkl"
+        X_tr, X_te, st_pipeline = build_feature_matrix(
+            tr_sub,
+            te_sub,
+            smiles_col="smiles",
+            save_to_disk=False,
+            scaler_path=st_scaler_path,
+        )
+        joblib.dump(st_pipeline, st_scaler_path, compress=3)
+        logger.info("Saved independent %s scaler (%d features) to %s", st, X_tr.shape[1], st_scaler_path)
 
-        if run_hpo and st not in best_params_per_subtype:
-            logger.info("  Running Optuna HPO for %s (30 trials, 3-fold Scaffold CV)...", st)
-            best_params_per_subtype[st] = _run_optuna_hpo(X_tr, y_tr, train_df.loc[train_mask, "smiles"].values, st, n_trials=30)
-        elif st not in best_params_per_subtype:
-            best_params_per_subtype[st] = DEFAULT_PARAMS[st]
+        y_tr = tr_sub["pchembl_value"].to_numpy(dtype=float)
+        y_te = te_sub["pchembl_value"].to_numpy(dtype=float)
 
-        params = best_params_per_subtype[st].copy()
-        params.update({"tree_method": "hist", "n_jobs": 1, "random_state": 42})
-        logger.info("  Params: %s", params)
+        xgb_params = dict(DEFAULT_PARAMS[st])
+        xgb_params.update({"tree_method": "hist", "n_jobs": 1, "random_state": 42})
+        base_xgb = xgb.XGBRegressor(**xgb_params)
+        xgb_conformal = train_conformal_model(base_xgb, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
 
-        base_xgb = xgb.XGBRegressor(**params)
-
-        logger.info("  Wrapping XGBoost with MAPIE CrossConformalRegressor...")
-        try:
-            conformal_model = train_conformal_model(
-                base_model=base_xgb,
-                X_train=X_tr,
-                y_train=y_tr,
-                cv=MAPIE_CV_FOLDS,
-            )
-            logger.info("  Conformal wrapping succeeded.")
-        except Exception as e:
-            logger.warning("  Conformal wrapping failed (%s). Saving raw model.", e)
-            conformal_model = base_xgb
+        lgb_params = dict(LGBM_DEFAULT_PARAMS[st])
+        lgb_params.update({"verbose": -1, "n_jobs": 1, "random_state": 42})
+        base_lgb = lgb.LGBMRegressor(**lgb_params)
+        lgb_conformal = train_conformal_model(base_lgb, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
 
         rf_base = RandomForestRegressor(
-            n_estimators=RF_N_ESTIMATORS,
-            max_depth=RF_MAX_DEPTH,
-            max_features=RF_MAX_FEATURES,
+            n_estimators=40,
+            max_depth=10,
+            min_samples_leaf=5,
+            max_features="sqrt",
+            n_jobs=-1,
             random_state=42,
-            n_jobs=1,
         )
-        logger.info("  Wrapping RandomForest with MAPIE CrossConformalRegressor...")
-        try:
-            rf_model = train_conformal_model(
-                base_model=rf_base,
-                X_train=X_tr,
-                y_train=y_tr,
-                cv=MAPIE_CV_FOLDS,
-            )
-            logger.info("  RF Conformal wrapping succeeded.")
-        except Exception as e:
-            logger.warning("  RF Conformal wrapping failed (%s). Saving raw model.", e)
-            rf_model = rf_base
-            rf_model.fit(X_tr, y_tr)
+        rf_conformal = train_conformal_model(rf_base, X_tr, y_tr, cv=MAPIE_CV_FOLDS)
 
-        # ── LightGBM ──
-        lgb_params = LGBM_DEFAULT_PARAMS[st].copy()
-        lgb_params.update({"verbosity": -1, "random_state": 42, "n_jobs": 1})
-        base_lgb = lgb.LGBMRegressor(**lgb_params)
-        logger.info("  Wrapping LightGBM with MAPIE CrossConformalRegressor...")
-        try:
-            lgb_model = train_conformal_model(
-                base_model=base_lgb,
-                X_train=X_tr,
-                y_train=y_tr,
-                cv=MAPIE_CV_FOLDS,
-            )
-            logger.info("  LightGBM Conformal wrapping succeeded.")
-        except Exception as e:
-            logger.warning("  LightGBM Conformal wrapping failed (%s). Saving raw model.", e)
-            lgb_model = base_lgb
-            lgb_model.fit(X_tr, y_tr)
+        w_st, rmses_st = _compute_validation_weights(base_xgb, base_lgb, rf_base, X_tr, y_tr)
+        consensus_weights_map[st] = w_st
 
-        # ── Predictions ──
-        preds_tr_xgb = conformal_model.predict(X_tr) if hasattr(conformal_model, 'predict') else base_xgb.predict(X_tr)
-        preds_te_xgb = conformal_model.predict(X_te) if hasattr(conformal_model, 'predict') else base_xgb.predict(X_te)
+        preds_te_xgb = np.asarray(xgb_conformal.predict(X_te), dtype=float).ravel()
+        preds_te_lgb = np.asarray(lgb_conformal.predict(X_te), dtype=float).ravel()
+        preds_te_rf = np.asarray(rf_conformal.predict(X_te), dtype=float).ravel()
+        preds_te_cons = (
+            w_st["XGBoost"] * preds_te_xgb
+            + w_st["LightGBM"] * preds_te_lgb
+            + w_st["RandomForest"] * preds_te_rf
+        )
 
-        preds_tr_rf = rf_model.predict(X_tr)
-        preds_te_rf = rf_model.predict(X_te)
-
-        preds_tr_lgb = lgb_model.predict(X_tr)
-        preds_te_lgb = lgb_model.predict(X_te)
-
-        # ── Simple average ensemble (more robust than learned meta-model on small data) ──
-        preds_tr_stack = (preds_tr_xgb + preds_tr_rf + preds_tr_lgb) / 3.0
-        preds_te_stack = (preds_te_xgb + preds_te_rf + preds_te_lgb) / 3.0
-
-        r2_tr_xgb = r2_score(y_tr, preds_tr_xgb)
-        r2_te_xgb = r2_score(y_te, preds_te_xgb)
-        r2_tr_rf = r2_score(y_tr, preds_tr_rf)
-        r2_te_rf = r2_score(y_te, preds_te_rf)
-        r2_tr_lgb = r2_score(y_tr, preds_tr_lgb)
-        r2_te_lgb = r2_score(y_te, preds_te_lgb)
-        r2_tr_stack = r2_score(y_tr, preds_tr_stack)
-        r2_te_stack = r2_score(y_te, preds_te_stack)
-
-        logger.info("    XGBoost  R2: train=%.3f, test=%.3f", r2_tr_xgb, r2_te_xgb)
-        logger.info("    RF       R2: train=%.3f, test=%.3f", r2_tr_rf, r2_te_rf)
-        logger.info("    LightGBM R2: train=%.3f, test=%.3f", r2_tr_lgb, r2_te_lgb)
-        logger.info("    Stack    R2: train=%.3f, test=%.3f", r2_tr_stack, r2_te_stack)
+        r2_xgb = float(r2_score(y_te, preds_te_xgb)) if len(y_te) else 0.0
+        r2_lgb = float(r2_score(y_te, preds_te_lgb)) if len(y_te) else 0.0
+        r2_rf = float(r2_score(y_te, preds_te_rf)) if len(y_te) else 0.0
+        r2_cons = float(r2_score(y_te, preds_te_cons)) if len(y_te) else 0.0
+        mae_cons = float(mean_absolute_error(y_te, preds_te_cons)) if len(y_te) else 0.0
 
         xgb_path = models_precise_dir / f"xgboost_{st}_production.pkl"
-        with open(xgb_path, "wb") as f:
-            pickle.dump(conformal_model, f)
-
-        rf_path = models_precise_dir / f"rf_{st}_production.pkl"
-        with open(rf_path, "wb") as f:
-            pickle.dump(rf_model, f)
-
         lgb_path = models_precise_dir / f"lgb_{st}_production.pkl"
-        with open(lgb_path, "wb") as f:
-            pickle.dump(lgb_model, f)
+        rf_path = models_precise_dir / f"rf_{st}_production.pkl"
+        joblib.dump(xgb_conformal, xgb_path, compress=3)
+        joblib.dump(lgb_conformal, lgb_path, compress=3)
+        joblib.dump(rf_conformal, rf_path, compress=3)
 
-        stack_model = AverageEnsemble()
-        stack_path = models_precise_dir / f"stack_ridge_{st}_production.pkl"
-        with open(stack_path, "wb") as f:
-            pickle.dump(stack_model, f)
+        xgb_mb = xgb_path.stat().st_size / 1e6
+        lgb_mb = lgb_path.stat().st_size / 1e6
+        rf_mb = rf_path.stat().st_size / 1e6
+        logger.info(
+            "%s test metrics: XGB R2=%.3f (%.2f MB), LGB R2=%.3f (%.2f MB), RF R2=%.3f (%.2f MB), Weighted Consensus R2=%.3f, MAE=%.3f, weights=%s",
+            st,
+            r2_xgb,
+            xgb_mb,
+            r2_lgb,
+            lgb_mb,
+            r2_rf,
+            rf_mb,
+            r2_cons,
+            mae_cons,
+            w_st,
+        )
 
-        training_summary[st] = {
+        per_subtype_summary[st] = {
             "train_size": int(len(y_tr)),
             "test_size": int(len(y_te)),
-            "xgboost_r2": r2_te_xgb,
-            "rf_r2": r2_te_rf,
-            "lgbm_r2": r2_te_lgb,
-            "stack_r2": r2_te_stack,
-            "conformal_wrapped": str(type(conformal_model).__name__),
+            "n_features": int(X_tr.shape[1]),
+            "scaler_file": f"scaler_{st}.pkl",
+            "xgboost_r2": round(r2_xgb, 5),
+            "lgbm_r2": round(r2_lgb, 5),
+            "rf_r2": round(r2_rf, 5),
+            "consensus_r2": round(r2_cons, 5),
+            "consensus_mae": round(mae_cons, 5),
+            "consensus_weights": w_st,
+            "oof_rmse": rmses_st,
+            "xgb_size_mb": round(xgb_mb, 3),
+            "lgb_size_mb": round(lgb_mb, 3),
+            "rf_size_mb": round(rf_mb, 3),
+            "conformal_wrapped": type(xgb_conformal).__name__,
         }
-        logger.info("  Saved XGBoost model (type=%s) to %s", type(conformal_model).__name__, xgb_path)
 
+    with open(models_precise_dir / "consensus_weights.json", "w", encoding="utf-8") as f:
+        json.dump(consensus_weights_map, f, indent=2)
 
+    functional_summary = retrain_functional_models(
+        data_path=data_path,
+        train_smiles=set(train_smiles),
+        test_smiles=set(test_smiles),
+    )
 
-    training_summary["run_id"] = RUN_ID
+    summary = {
+        "run_id": RUN_ID,
+        "trained_at": RUN_TIMESTAMP,
+        "assay_filter": assay_filter,
+        "dataset_source": dataset_source,
+        "n_replicates_dropped_conflict": n_dropped_conflict,
+        "n_records_total": int(len(df)),
+        "n_unique_molecules": int(len(unique_smiles)),
+        "n_train_molecules": int(len(train_smiles)),
+        "n_test_molecules": int(len(test_smiles)),
+        "n_features": int(X_train_glob.shape[1]),
+        "independent_subtype_scalers": [f"scaler_{st}.pkl" for st in SUBTYPES],
+        "consensus_weights": consensus_weights_map,
+        "functional_models_summary": functional_summary,
+        "subtypes": list(SUBTYPES),
+        "models": ["XGBoost", "LightGBM", "RandomForest", "Consensus"],
+        "package_versions": {
+            "python": platform.python_version(),
+            "rdkit": rdkit_version,
+            "xgboost": xgb.__version__,
+            "lightgbm": lgb.__version__,
+            "mapie": mapie.__version__,
+            "scikit-learn": sklearn.__version__,
+            "joblib": joblib.__version__,
+        },
+        "per_subtype": per_subtype_summary,
+    }
+
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
     summary_path = OUTPUTS_DIR / "training_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(training_summary, f, indent=2)
-    logger.info("Training summary saved to %s [run_id=%s]", summary_path, RUN_ID)
-
-    logger.info("=" * 60)
-    logger.info("PRODUCTION TRAINING COMPLETED SUCCESSFULLY")
-    logger.info("=" * 60)
+        json.dump(summary, f, indent=2)
+    logger.info("Saved training summary to %s [run_id=%s]", summary_path, RUN_ID)
+    return summary
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO),
-                        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    retrain_production_models()
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    parser = argparse.ArgumentParser(description="Train Conformal XGBoost + LightGBM Production Models")
+    parser.add_argument("--data-dir", default="data/raw", help="Raw bioactivity data directory")
+    args = parser.parse_args()
+    retrain_production_models(data_path=args.data_dir)

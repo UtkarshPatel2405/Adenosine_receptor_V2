@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Adenosine Receptor Profiler | Multi-Target Conformal pKi Platform</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script defer src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">AR</div>
+        <div>
+          <h1 class="brand-title">Adenosine Receptor Profiler</h1>
+          <p class="brand-subtitle">Conformal Multi-Target pKi Ensemble (Human A1, A2A, A2B, A3)</p>
+        </div>
+      </div>
+
+      <nav class="workspace-nav" role="tablist" aria-label="Primary Workspaces">
+        <button type="button" class="ws-tab active" role="tab" aria-selected="true" aria-controls="ws-single" id="tab-btn-single" data-workspace="single">
+          Single Molecule Profiler
+        </button>
+        <button type="button" class="ws-tab" role="tab" aria-selected="false" aria-controls="ws-batch" id="tab-btn-batch" data-workspace="batch">
+          Batch Virtual Screening
+        </button>
+        <button type="button" class="ws-tab" role="tab" aria-selected="false" aria-controls="ws-benchmarks" id="tab-btn-benchmarks" data-workspace="benchmarks">
+          Model Benchmarks
+        </button>
+      </nav>
+
+      <div class="header-meta">
+        <span class="status-pill" id="api-status-pill">Connecting...</span>
+        <span class="version-tag" id="app-version-tag">v2.0.0</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="app-main">
+    <section id="ws-single" class="workspace-panel active" role="tabpanel" aria-labelledby="tab-btn-single">
+      <div class="card control-bar">
+        <form id="single-predict-form" class="control-grid" novalidate>
+          <div class="field-group">
+            <label for="preset-select" class="field-label">Reference Ligand Preset</label>
+            <select id="preset-select" class="input-control">
+              <option value="__custom__">Custom SMILES Input</option>
+            </select>
+          </div>
+
+          <div class="field-group field-smiles">
+            <label for="smiles-input" class="field-label">Canonical or Isomeric SMILES</label>
+            <input
+              type="text"
+              id="smiles-input"
+              class="input-control mono"
+              placeholder="Enter SMILES string (e.g., Regadenoson, ZM241385, Istradefylline)"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            >
+          </div>
+
+          <div class="field-group field-threshold">
+            <label for="threshold-slider" class="field-label">
+              Hit Cutoff: <strong id="threshold-value" class="accent-text">6.0</strong> pKi
+            </label>
+            <input
+              type="range"
+              id="threshold-slider"
+              class="range-control"
+              min="5.0"
+              max="9.0"
+              step="0.1"
+              value="6.0"
+            >
+            <div class="range-scale">
+              <span>5.0 (10 uM)</span>
+              <span>7.0 (100 nM)</span>
+              <span>9.0 (1 nM)</span>
+            </div>
+          </div>
+
+          <div class="field-group field-action">
+            <button type="submit" id="btn-profile-molecule" class="btn btn-primary">
+              <span class="btn-label">Profile Molecule</span>
+            </button>
+          </div>
+        </form>
+
+        <div id="single-status-bar" class="status-banner hidden" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="db-lookup-banner" class="db-banner hidden" aria-live="polite"></div>
+
+      <div id="single-results-shell" class="results-shell hidden">
+        <div class="subtab-nav" role="tablist" aria-label="Molecule Analysis Views">
+          <button type="button" class="subtab-btn active" role="tab" aria-selected="true" data-subtab="overview">Overview &amp; pKi</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="structure">2D / 3D Structure</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="selectivity">Selectivity Radar</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="efficacy">Efficacy, Safety &amp; ADMET</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="shap">Chemical Space &amp; TreeSHAP</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="gpcrdb">GPCRdb 3D Structures</button>
+          <button type="button" class="subtab-btn" role="tab" aria-selected="false" data-subtab="provenance">Provenance</button>
+        </div>
+
+        <div id="subtab-overview" class="subtab-panel active" role="tabpanel">
+          <div class="subtype-cards-grid" id="subtype-cards-grid"></div>
+
+          <div class="two-col-grid">
+            <div class="card" id="ad-card">
+              <div class="card-header">
+                <h2 class="card-title">Applicability Domain (OECD Principle 3)</h2>
+                <span class="badge" id="ad-status-badge">--</span>
+              </div>
+              <div id="ad-card-body" class="card-body"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Canonical Identity &amp; Export</h2>
+                <button type="button" id="btn-export-json" class="btn btn-secondary btn-sm">Download JSON Report</button>
+              </div>
+              <div id="identity-card-body" class="card-body"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Model 1: Equilibrium Binding Affinity (pKi / pKd)</h2>
+              <span class="muted-note">Trained strictly on Human Ki &amp; Kd (Validation-Weighted Consensus + 90% MAPIE Intervals)</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="model-comparison-table">
+                <thead>
+                  <tr>
+                    <th>Model / Source</th>
+                    <th>A1 (pKi)</th>
+                    <th>A2A (pKi)</th>
+                    <th>A2B (pKi)</th>
+                    <th>A3 (pKi)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Model 2 (Use Case A): Functional &amp; Displacement Potency (pIC50 / pEC50)</h2>
+              <span class="muted-note">Trained on Human IC50 &amp; EC50 assays (Validation-Weighted Consensus + 90% MAPIE Intervals)</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="functional-comparison-table">
+                <thead>
+                  <tr>
+                    <th>Model / Source</th>
+                    <th>A1 (pIC50/pEC50)</th>
+                    <th>A2A (pIC50/pEC50)</th>
+                    <th>A2B (pIC50/pEC50)</th>
+                    <th>A3 (pIC50/pEC50)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="subtab-structure" class="subtab-panel" role="tabpanel">
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">2D Depiction (RDKit)</h2>
+                <span class="muted-note" id="struct-formula-meta">Canonical 2D Coordinates</span>
+              </div>
+              <div class="svg-stage" id="mol-2d-container"></div>
+              <div class="descriptor-strip" id="struct-desc-strip"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">3D MMFF94 Conformer (3Dmol.js)</h2>
+                <div class="btn-row">
+                  <button type="button" id="btn-load-3d" class="btn btn-secondary btn-sm">Generate 3D</button>
+                  <button type="button" id="btn-dl-sdf" class="btn btn-secondary btn-sm">Download SDF</button>
+                  <button type="button" id="btn-dl-pdb" class="btn btn-secondary btn-sm">Download PDB</button>
+                </div>
+              </div>
+              <div class="viewer-3d-shell">
+                <div id="mol-3d-viewer" class="viewer-3d-canvas"></div>
+                <div id="mol-3d-status" class="viewer-overlay">Click "Generate 3D" or wait for ETKDGv3/MMFF94 conformer...</div>
+              </div>
+              <div class="btn-row mt-sm">
+                <button type="button" class="btn btn-ghost btn-sm" data-3d-style="stick">Stick</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-3d-style="ballstick">Ball &amp; Stick</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-3d-style="sphere">Spacefill</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="subtab-selectivity" class="subtab-panel" role="tabpanel">
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">4-Subtype Selectivity Polygon</h2>
+                <span class="badge badge-cyan" id="selectivity-class-badge">--</span>
+              </div>
+              <div id="selectivity-radar-chart" class="chart-box-md"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Rank-Ordered Subtype Hierarchy</h2>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" id="selectivity-rank-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Subtype</th>
+                      <th>Consensus pKi</th>
+                      <th>Est. Ki</th>
+                      <th>90% CI</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Pairwise Selectivity Differentials (All 6 Receptor Pairs)</h2>
+              <span class="muted-note">Positive delta favors Subtype A; Fold Ratio = 10^|delta pKi|</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="pairwise-delta-table">
+                <thead>
+                  <tr>
+                    <th>Pair (A vs B)</th>
+                    <th>Delta pKi (A - B)</th>
+                    <th>Fold Selectivity</th>
+                    <th>Favored Subtype</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="subtab-efficacy" class="subtab-panel" role="tabpanel">
+          <div class="caveat-banner">
+            <strong>Scientific Scope Notice:</strong> Functional efficacy and orthosteric pocket flags below are
+            <strong>2D SMARTS Pharmacophore Heuristics</strong> (deterministic substructure rules, not ML probabilities).
+            Agonism vs antagonism, G-protein coupling bias, and binding pose require experimental cAMP/GTPgS functional assays.
+          </div>
+
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">2D SMARTS Pharmacophore Heuristic</h2>
+                <span class="badge" id="efficacy-class-badge">--</span>
+              </div>
+              <div id="efficacy-body" class="card-body"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Cardiac, Mast-Cell &amp; PDE1-10 Safety Alerts</h2>
+                <span class="badge" id="safety-overall-badge">--</span>
+              </div>
+              <div id="safety-body" class="card-body"></div>
+            </div>
+          </div>
+
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Pfizer CNS-MPO (0-6) &amp; Clark Empirical LogBB</h2>
+                <span class="badge" id="cns-mpo-badge">--</span>
+              </div>
+              <div id="cns-admet-body" class="card-body"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Drug-Likeness: Lipinski Ro5, Veber, QED &amp; PAINS</h2>
+                <span class="badge" id="pains-badge">--</span>
+              </div>
+              <div id="druglikeness-body" class="card-body"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="subtab-shap" class="subtab-panel" role="tabpanel">
+          <div class="card inline-toolbar">
+            <div class="toolbar-left">
+              <label for="shap-subtype-select" class="field-label-inline">Inspect Subtype Model:</label>
+              <select id="shap-subtype-select" class="input-control input-sm">
+                <option value="A1">Human A1</option>
+                <option value="A2A">Human A2A</option>
+                <option value="A2B">Human A2B</option>
+                <option value="A3">Human A3</option>
+              </select>
+            </div>
+            <span class="muted-note" id="shap-status-note">Select a subtype to inspect nearest training analogs and local TreeSHAP drivers.</span>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Local TreeSHAP Feature Attribution (Top 10 Drivers)</h2>
+              <span class="muted-note" id="shap-base-value">Base value: --</span>
+            </div>
+            <div id="local-shap-chart" class="chart-box-md"></div>
+            <div class="table-wrap mt-sm">
+              <table class="data-table" id="local-shap-table">
+                <thead>
+                  <tr>
+                    <th>Feature</th>
+                    <th>SHAP Contribution</th>
+                    <th>Direction</th>
+                    <th>Physicochemical / Structural Meaning</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Nearest Training Analogs (Top 5 by Morgan Tanimoto)</h2>
+              <span class="muted-note">Measured training-set experimental pKi for selected subtype</span>
+            </div>
+            <div id="neighbors-grid" class="neighbors-grid"></div>
+          </div>
+        </div>
+
+        <div id="subtab-gpcrdb" class="subtab-panel" role="tabpanel">
+          <div class="card inline-toolbar">
+            <div class="toolbar-left">
+              <label for="gpcr-subtype-select" class="field-label-inline">Receptor Subtype:</label>
+              <select id="gpcr-subtype-select" class="input-control input-sm">
+                <option value="A1">Human A1 (6D9H / 5N2S)</option>
+                <option value="A2A" selected>Human A2A (6GDG / 4EIY)</option>
+                <option value="A2B">Human A2B (8HDO / AF-P29275)</option>
+                <option value="A3">Human A3 (8X16 / 9EHS)</option>
+              </select>
+
+              <div class="segmented-control" role="group" aria-label="Conformational State">
+                <button type="button" class="seg-btn active" data-gpcr-state="active">Active State</button>
+                <button type="button" class="seg-btn" data-gpcr-state="inactive">Inactive State</button>
+              </div>
+            </div>
+            <span class="muted-note" id="gpcr-pdb-meta">PDB coordinates fetched live from RCSB via 3Dmol.js</span>
+          </div>
+
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title" id="gpcr-viewer-title">Receptor 3D Structure</h2>
+                <span class="badge badge-cyan" id="gpcr-pdb-badge">--</span>
+              </div>
+              <div class="viewer-3d-shell viewer-3d-tall">
+                <div id="gpcr-3d-viewer" class="viewer-3d-canvas"></div>
+                <div id="gpcr-3d-status" class="viewer-overlay">Select subtype and state to load structure.</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Structural Metadata &amp; CADD Context</h2>
+              </div>
+              <div id="gpcr-meta-body" class="card-body"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">GPCRdb Adenosine Receptor Reference Catalog</h2>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="gpcr-catalog-table">
+                <thead>
+                  <tr>
+                    <th>Subtype</th>
+                    <th>State</th>
+                    <th>PDB ID</th>
+                    <th>Method</th>
+                    <th>Resolution</th>
+                    <th>Ligand / Complex</th>
+                    <th>Structural Note</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="subtab-provenance" class="subtab-panel" role="tabpanel">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Model &amp; Dataset Provenance Manifest</h2>
+              <span class="badge badge-cyan" id="prov-schema-badge">--</span>
+            </div>
+            <div id="provenance-summary-grid" class="kpi-grid"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">SHA-256 Artifact Checksums</h2>
+              <span class="muted-note">Verified on-disk integrity digests for processed data and production models</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="provenance-hashes-table">
+                <thead>
+                  <tr>
+                    <th>Artifact Category</th>
+                    <th>Artifact Path</th>
+                    <th>SHA-256 Digest (16-hex)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ws-batch" class="workspace-panel" role="tabpanel" aria-labelledby="tab-btn-batch">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Batch Virtual Screening (Up to 250 SMILES)</h2>
+          <div class="btn-row">
+            <button type="button" id="btn-load-sample-batch" class="btn btn-secondary btn-sm">Load 8 Reference Ligands</button>
+            <label for="batch-file-input" class="btn btn-secondary btn-sm file-btn">Upload CSV / TXT</label>
+            <input type="file" id="batch-file-input" accept=".csv,.txt,.smi" class="sr-only">
+          </div>
+        </div>
+
+        <div class="batch-controls">
+          <div class="field-group">
+            <label for="batch-smiles-textarea" class="field-label">SMILES List (one SMILES per line; optional name after whitespace or comma)</label>
+            <textarea
+              id="batch-smiles-textarea"
+              class="textarea-control mono"
+              rows="7"
+              placeholder="Paste up to 250 SMILES strings, one per line..."
+              spellcheck="false"
+            ></textarea>
+          </div>
+
+          <div class="batch-action-row">
+            <div class="field-group field-threshold-inline">
+              <label for="batch-threshold-slider" class="field-label">
+                Hit Cutoff: <strong id="batch-threshold-value" class="accent-text">6.0</strong> pKi
+              </label>
+              <input
+                type="range"
+                id="batch-threshold-slider"
+                class="range-control"
+                min="5.0"
+                max="9.0"
+                step="0.1"
+                value="6.0"
+              >
+            </div>
+            <button type="button" id="btn-run-batch" class="btn btn-primary">Run Batch Screening</button>
+          </div>
+        </div>
+
+        <div id="batch-status-bar" class="status-banner hidden" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="batch-results-shell" class="hidden">
+        <div class="kpi-grid" id="batch-kpi-grid"></div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Ranked Screening Results</h2>
+            <div class="btn-row">
+              <span class="muted-note">Click column headers to sort</span>
+              <button type="button" id="btn-export-batch-csv" class="btn btn-secondary btn-sm">Download CSV</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table sortable-table" id="batch-results-table">
+              <thead>
+                <tr>
+                  <th data-sort-key="index">#</th>
+                  <th data-sort-key="smiles">Canonical SMILES</th>
+                  <th data-sort-key="best_target">Best Target</th>
+                  <th data-sort-key="max_pki">Max pKi</th>
+                  <th data-sort-key="A1">A1</th>
+                  <th data-sort-key="A2A">A2A</th>
+                  <th data-sort-key="A2B">A2B</th>
+                  <th data-sort-key="A3">A3</th>
+                  <th data-sort-key="selectivity_margin">Delta pKi</th>
+                  <th data-sort-key="tanimoto_max">Max Sim</th>
+                  <th data-sort-key="cns_mpo">CNS-MPO</th>
+                  <th data-sort-key="db_status">Dataset</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ws-benchmarks" class="workspace-panel" role="tabpanel" aria-labelledby="tab-btn-benchmarks">
+      <div id="bench-status-bar" class="status-banner hidden" role="status" aria-live="polite"></div>
+
+      <div id="bench-content" class="hidden">
+        <div class="kpi-grid" id="bench-kpi-grid"></div>
+
+        <div class="two-col-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Holdout Performance by Subtype (Scaffold Split)</h2>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="bench-subtype-table">
+                <thead>
+                  <tr>
+                    <th>Subtype</th>
+                    <th>Test N</th>
+                    <th>Consensus R2</th>
+                    <th>Spearman</th>
+                    <th>MAE</th>
+                    <th>RMSE</th>
+                    <th>XGB R2</th>
+                    <th>LGB R2</th>
+                    <th>RF R2</th>
+                    <th>Baseline R2</th>
+                    <th>90% Cov.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Grouped R2 Comparison Across Models</h2>
+            </div>
+            <div id="bench-r2-bar-chart" class="chart-box-md"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Empirical Holdout Parity &amp; Residual Diagnostics</h2>
+            <div class="btn-row">
+              <label for="parity-subtype-filter" class="field-label-inline">Subtype:</label>
+              <select id="parity-subtype-filter" class="input-control input-sm">
+                <option value="ALL">All Subtypes</option>
+                <option value="A1">A1</option>
+                <option value="A2A">A2A</option>
+                <option value="A2B">A2B</option>
+                <option value="A3">A3</option>
+              </select>
+              <label for="parity-model-filter" class="field-label-inline">Model:</label>
+              <select id="parity-model-filter" class="input-control input-sm">
+                <option value="y_pred_consensus">Consensus</option>
+                <option value="y_pred_xgb">XGBoost</option>
+                <option value="y_pred_lgb">LightGBM</option>
+                <option value="y_pred_rf">Random Forest</option>
+              </select>
+            </div>
+          </div>
+          <div class="two-col-grid">
+            <div id="bench-parity-chart" class="chart-box-md"></div>
+            <div id="bench-residual-chart" class="chart-box-md"></div>
+          </div>
+        </div>
+
+        <div class="two-col-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Conformal Calibration Quartiles (Q1 - Q4)</h2>
+              <span class="muted-note">Empirical MAE and 90% coverage stratified by predicted uncertainty</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="bench-calibration-table">
+                <thead>
+                  <tr>
+                    <th>Quartile</th>
+                    <th>N</th>
+                    <th>Mean Std</th>
+                    <th>Empirical MAE</th>
+                    <th>90% Coverage</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Uncertainty Quartile Calibration Chart</h2>
+            </div>
+            <div id="bench-calibration-chart" class="chart-box-sm"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Curated Dataset Diagnostics</h2>
+            <span class="muted-note" id="diag-assay-breakdown">Assay type breakdown</span>
+          </div>
+          <div class="kpi-grid" id="diag-kpi-grid"></div>
+          <div class="table-wrap mt-sm">
+            <table class="data-table" id="diag-subtype-table">
+              <thead>
+                <tr>
+                  <th>Subtype</th>
+                  <th>Records</th>
+                  <th>Min pKi</th>
+                  <th>Median pKi</th>
+                  <th>Mean pKi</th>
+                  <th>Max pKi</th>
+                  <th>Weak / Inactive (&lt; 6.0)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="two-col-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Global TreeSHAP Top Features</h2>
+              <select id="global-shap-subtype" class="input-control input-sm">
+                <option value="A1">A1</option>
+                <option value="A2A" selected>A2A</option>
+                <option value="A2B">A2B</option>
+                <option value="A3">A3</option>
+              </select>
+            </div>
+            <div id="bench-global-shap-chart" class="chart-box-md"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">20-Fold Y-Randomization Control</h2>
+              <select id="yrand-subtype" class="input-control input-sm">
+                <option value="A1">A1</option>
+                <option value="A2A" selected>A2A</option>
+                <option value="A2B">A2B</option>
+                <option value="A3">A3</option>
+              </select>
+            </div>
+            <div id="bench-yrand-chart" class="chart-box-md"></div>
+            <div id="bench-yrand-meta" class="muted-note mt-sm"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Verified Artifact Downloads</h2>
+            <span class="muted-note">Direct download of curated datasets, evaluation metrics, and holdout predictions</span>
+          </div>
+          <div class="download-grid" id="artifact-download-grid">
+            <a class="dl-chip" href="/api/download/A1_pki.csv" download>A1_pki.csv</a>
+            <a class="dl-chip" href="/api/download/A2A_pki.csv" download>A2A_pki.csv</a>
+            <a class="dl-chip" href="/api/download/A2B_pki.csv" download>A2B_pki.csv</a>
+            <a class="dl-chip" href="/api/download/A3_pki.csv" download>A3_pki.csv</a>
+            <a class="dl-chip" href="/api/download/evaluation_report.json" download>evaluation_report.json</a>
+            <a class="dl-chip" href="/api/download/holdout_predictions.csv" download>holdout_predictions.csv</a>
+            <a class="dl-chip" href="/api/download/dataset_diagnostics.json" download>dataset_diagnostics.json</a>
+            <a class="dl-chip" href="/api/download/training_summary.json" download>training_summary.json</a>
+            <a class="dl-chip" href="/api/download/global_split.json" download>global_split.json</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>Adenosine Receptor Profiler | Conformal Multi-Target pKi Platform (Human A1, A2A, A2B, A3)</span>
+    <span>Research use only. Experimental assay confirmation required for pharmacological claims.</span>
+  </footer>
+</body>
+</html>

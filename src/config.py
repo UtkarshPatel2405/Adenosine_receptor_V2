@@ -1,6 +1,6 @@
 import os
+import time as _time
 from pathlib import Path
-
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -9,11 +9,19 @@ RAW_DATA_DIR = Path(os.getenv("ADENOSINE_RAW_DATA_DIR", str(DATA_DIR / "raw")))
 PROCESSED_DATA_DIR = Path(os.getenv("ADENOSINE_PROCESSED_DATA_DIR", str(DATA_DIR / "processed")))
 MODELS_DIR = Path(os.getenv("ADENOSINE_MODELS_DIR", str(ROOT_DIR / "models")))
 OUTPUTS_DIR = Path(os.getenv("ADENOSINE_OUTPUTS_DIR", str(ROOT_DIR / "outputs")))
-FIGURES_DIR = Path(os.getenv("ADENOSINE_FIGURES_DIR", str(ROOT_DIR / "figures")))
+
+APP_VERSION = "2.0.0"
 
 SUBTYPES = ["A1", "A2A", "A2B", "A3"]
+CHEMBL_TARGETS = {
+    "A1": "CHEMBL226",
+    "A2A": "CHEMBL251",
+    "A2B": "CHEMBL255",
+    "A3": "CHEMBL256",
+}
 
-VALID_STANDARD_TYPES = {"KI", "KD", "IC50", "EC50", "AC50"}
+VALID_STANDARD_TYPES = {"KI", "KD"}
+VALID_FUNCTIONAL_TYPES = {"IC50", "EC50"}
 REQUIRED_CONFIDENCE = 6
 DECOY_PCHEMBL = 4.0
 
@@ -28,35 +36,12 @@ MAPIE_CONFIDENCE = 0.90
 CONFORMAL_ALPHA = 0.10
 
 Y_RAND_ITERATIONS = 20
-GNN_EPOCHS = 100
-GNN_HIDDEN_DIM = 256
-GNN_NUM_LAYERS = 3
-GNN_DROPOUT = 0.2
-GNN_BATCH_SIZE = 64
-GNN_LR = 1e-3
-GNN_PATIENCE = 15
-
-NESTED_CV_OUTER_FOLDS = 5
-NESTED_CV_INNER_FOLDS = 3
-NESTED_CV_TRIALS = 20
-
-RF_N_ESTIMATORS = 300
-RF_MAX_DEPTH = 15
-RF_MAX_FEATURES = "sqrt"
 
 FEATURE_NAN_THRESHOLD = 0.05
 FEATURE_VAR_THRESHOLD = 0.01
 FEATURE_CORR_THRESHOLD = 0.90
 
-SELECTIVITY_MIN_PAIRED = 50
-SELECTIVITY_N_ESTIMATORS = 300
-SELECTIVITY_LR = 0.05
-SELECTIVITY_MAX_DEPTH = 5
-
 ACTIVE_THRESHOLD = 6.0
-
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "")
-MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "adenosine-selectivity")
 
 LOG_LEVEL = os.getenv("ADENOSINE_LOG_LEVEL", "INFO").upper()
 
@@ -65,9 +50,6 @@ try:
     load_dotenv(ROOT_DIR / ".env")
 except ImportError:
     pass
-
-# ── Run ID (generated once per process, lazy on first access) ──
-import time as _time
 
 _RUN_ID: str | None = None
 _RUN_TIMESTAMP: str | None = None
@@ -88,10 +70,9 @@ def _get_run_timestamp() -> str:
     return _RUN_TIMESTAMP
 
 
-def __getattr__(name):
+def __getattr__(name: str):
     if name == "RUN_ID":
         return _get_run_id()
     if name == "RUN_TIMESTAMP":
         return _get_run_timestamp()
     raise AttributeError(f"module 'src.config' has no attribute {name!r}")
-

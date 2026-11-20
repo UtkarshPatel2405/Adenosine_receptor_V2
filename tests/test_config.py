@@ -13,7 +13,8 @@ class TestConfigConstants:
 
     def test_valid_standard_types(self):
         assert "KI" in VALID_STANDARD_TYPES
-        assert "IC50" in VALID_STANDARD_TYPES
+        assert "KD" in VALID_STANDARD_TYPES
+        assert "IC50" not in VALID_STANDARD_TYPES
         assert "INVALID" not in VALID_STANDARD_TYPES
 
     def test_decoy_pchembl_is_physiologically_plausible(self):

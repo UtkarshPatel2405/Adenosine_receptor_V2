@@ -1,6 +1,6 @@
 {
-  "run_id": "ADENO_20260622_115234_b1bad7",
-  "actual_file": "ADENO_20260622_115234_b1bad7_pipeline_run.json",
-  "full_path": "C:\\Users\\utkar\\Documents\\GitHub\\Adenosine_Selectivity_Model\\outputs\\ADENO_20260622_115234_b1bad7_pipeline_run.json",
-  "generated_at": "2026-06-22 12:07:33"
+  "run_id": "ADENO_20261119_155050_1cf9b8",
+  "timestamp": "2026-11-19 14:51:55",
+  "skip_retrain": false,
+  "y_rand_iterations": 20
 }

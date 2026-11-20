@@ -1,5 +1,7 @@
-"""Pharmacological selectivity spectrum & pairwise differential calculation engine."""
-from typing import Dict, Any, List, Tuple
+"""Pharmacological selectivity spectrum and pairwise differential calculations."""
+from typing import Any, Dict
+
+from src.config import SUBTYPES
 
 SUBTYPE_PAIRS = [
     ("A1", "A2A"),
@@ -11,17 +13,22 @@ SUBTYPE_PAIRS = [
 ]
 
 
-def compute_selectivity_spectrum(predictions: Dict[str, float], canon_smiles: str = "", in_domain: bool = True) -> Dict[str, Any]:
-    """Calculate multi-target selectivity profile, rank hierarchy, and pairwise differentials."""
-    subtypes = ["A1", "A2A", "A2B", "A3"]
-    valid_scores = {s: float(predictions[s]) for s in subtypes if s in predictions and predictions[s] is not None}
+def compute_selectivity_spectrum(
+    predictions: Dict[str, float],
+    canon_smiles: str = "",
+    in_domain: bool = True,
+) -> Dict[str, Any]:
+    """Compute subtype rank hierarchy, selectivity margin, and pairwise pChEMBL deltas."""
+    valid_scores = {
+        s: float(predictions[s])
+        for s in SUBTYPES
+        if s in predictions and predictions[s] is not None
+    }
 
-    # Rank-order subtypes by predicted affinity
     ranked = sorted(valid_scores.keys(), key=lambda s: valid_scores[s], reverse=True)
     best_target = ranked[0] if ranked else "N/A"
     top_score = valid_scores[ranked[0]] if ranked else 0.0
 
-    # Domain and activity boundary validation
     if not in_domain:
         margin = 0.0
         margin_fold = 1.0
@@ -33,7 +40,7 @@ def compute_selectivity_spectrum(predictions: Dict[str, float], canon_smiles: st
     elif len(ranked) >= 2:
         runner_up = valid_scores[ranked[1]]
         margin = max(0.0, top_score - runner_up)
-        margin_fold = 10 ** margin
+        margin_fold = 10.0 ** margin
         if margin >= 2.0:
             classification = f"Human {ranked[0]} Highly Selective ({margin_fold:.1f}x margin)"
         elif margin >= 1.0:
@@ -47,13 +54,12 @@ def compute_selectivity_spectrum(predictions: Dict[str, float], canon_smiles: st
         margin_fold = 1.0
         classification = "Equipotent Profile"
 
-    # Complete pairwise differentials
     pairwise: Dict[str, float] = {}
-    for subA, subB in SUBTYPE_PAIRS:
-        valA = valid_scores.get(subA)
-        valB = valid_scores.get(subB)
-        if valA is not None and valB is not None:
-            pairwise[f"{subA}_vs_{subB}"] = round(valA - valB, 3)
+    for sub_a, sub_b in SUBTYPE_PAIRS:
+        val_a = valid_scores.get(sub_a)
+        val_b = valid_scores.get(sub_b)
+        if val_a is not None and val_b is not None:
+            pairwise[f"{sub_a}_vs_{sub_b}"] = round(val_a - val_b, 3)
 
     return {
         "best_target": best_target,

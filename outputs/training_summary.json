@@ -1,6 +1,229 @@
 {
-  "run_id": "ADENO_20260714_143446_e737f5",
-  "actual_file": "ADENO_20260714_143446_e737f5_training_summary.json",
-  "full_path": "C:\\Users\\utkar\\Documents\\GitHub\\Adenosine_Selectivity_Model\\outputs\\ADENO_20260714_143446_e737f5_training_summary.json",
-  "generated_at": "2026-07-14 16:02:18"
+  "run_id": "ADENO_20261119_155050_1cf9b8",
+  "trained_at": "2026-11-19 14:51:55",
+  "assay_filter": "Equilibrium binding Ki and Kd only (pKi)",
+  "dataset_source": "ChEMBL_API + ChEMBL_Parents + GPCRdb",
+  "n_replicates_dropped_conflict": 106,
+  "n_records_total": 16355,
+  "n_unique_molecules": 9015,
+  "n_train_molecules": 7212,
+  "n_test_molecules": 1803,
+  "n_features": 2284,
+  "independent_subtype_scalers": [
+    "scaler_A1.pkl",
+    "scaler_A2A.pkl",
+    "scaler_A2B.pkl",
+    "scaler_A3.pkl"
+  ],
+  "consensus_weights": {
+    "A1": {
+      "XGBoost": 0.4081,
+      "LightGBM": 0.3824,
+      "RandomForest": 0.2095
+    },
+    "A2A": {
+      "XGBoost": 0.4069,
+      "LightGBM": 0.3805,
+      "RandomForest": 0.2126
+    },
+    "A2B": {
+      "XGBoost": 0.3838,
+      "LightGBM": 0.3562,
+      "RandomForest": 0.2599
+    },
+    "A3": {
+      "XGBoost": 0.4146,
+      "LightGBM": 0.3829,
+      "RandomForest": 0.2025
+    }
+  },
+  "functional_models_summary": {
+    "A1": {
+      "train_size": 669,
+      "test_size": 168,
+      "consensus_r2": 0.5363,
+      "consensus_mae": 0.6874,
+      "consensus_weights": {
+        "XGBoost": 0.3504,
+        "LightGBM": 0.3447,
+        "RandomForest": 0.3049
+      },
+      "oof_rmse": {
+        "XGBoost": 0.7936,
+        "LightGBM": 0.7969,
+        "RandomForest": 0.8217
+      }
+    },
+    "A2A": {
+      "train_size": 1283,
+      "test_size": 315,
+      "consensus_r2": 0.5733,
+      "consensus_mae": 0.5727,
+      "consensus_weights": {
+        "XGBoost": 0.3587,
+        "LightGBM": 0.3612,
+        "RandomForest": 0.2801
+      },
+      "oof_rmse": {
+        "XGBoost": 0.6768,
+        "LightGBM": 0.6756,
+        "RandomForest": 0.7199
+      }
+    },
+    "A2B": {
+      "train_size": 1170,
+      "test_size": 323,
+      "consensus_r2": 0.5083,
+      "consensus_mae": 0.5721,
+      "consensus_weights": {
+        "XGBoost": 0.3469,
+        "LightGBM": 0.333,
+        "RandomForest": 0.32
+      },
+      "oof_rmse": {
+        "XGBoost": 0.6327,
+        "LightGBM": 0.6392,
+        "RandomForest": 0.6456
+      }
+    },
+    "A3": {
+      "train_size": 765,
+      "test_size": 193,
+      "consensus_r2": 0.2366,
+      "consensus_mae": 0.6214,
+      "consensus_weights": {
+        "XGBoost": 0.341,
+        "LightGBM": 0.3219,
+        "RandomForest": 0.3371
+      },
+      "oof_rmse": {
+        "XGBoost": 0.7429,
+        "LightGBM": 0.7537,
+        "RandomForest": 0.745
+      }
+    }
+  },
+  "subtypes": [
+    "A1",
+    "A2A",
+    "A2B",
+    "A3"
+  ],
+  "models": [
+    "XGBoost",
+    "LightGBM",
+    "RandomForest",
+    "Consensus"
+  ],
+  "package_versions": {
+    "python": "3.12.14",
+    "rdkit": "2026.03.3",
+    "xgboost": "3.3.0",
+    "lightgbm": "4.7.0",
+    "mapie": "1.4.1",
+    "scikit-learn": "1.9.0",
+    "joblib": "1.5.3"
+  },
+  "per_subtype": {
+    "A1": {
+      "train_size": 3686,
+      "test_size": 890,
+      "n_features": 2284,
+      "scaler_file": "scaler_A1.pkl",
+      "xgboost_r2": 0.49239,
+      "lgbm_r2": 0.49022,
+      "rf_r2": 0.28602,
+      "consensus_r2": 0.47241,
+      "consensus_mae": 0.61508,
+      "consensus_weights": {
+        "XGBoost": 0.4081,
+        "LightGBM": 0.3824,
+        "RandomForest": 0.2095
+      },
+      "oof_rmse": {
+        "XGBoost": 0.6602,
+        "LightGBM": 0.671,
+        "RandomForest": 0.78
+      },
+      "xgb_size_mb": 2.283,
+      "lgb_size_mb": 2.255,
+      "rf_size_mb": 1.156,
+      "conformal_wrapped": "CrossConformalRegressor"
+    },
+    "A2A": {
+      "train_size": 4305,
+      "test_size": 1066,
+      "n_features": 2284,
+      "scaler_file": "scaler_A2A.pkl",
+      "xgboost_r2": 0.65918,
+      "lgbm_r2": 0.64969,
+      "rf_r2": 0.51413,
+      "consensus_r2": 0.64277,
+      "consensus_mae": 0.5544,
+      "consensus_weights": {
+        "XGBoost": 0.4069,
+        "LightGBM": 0.3805,
+        "RandomForest": 0.2126
+      },
+      "oof_rmse": {
+        "XGBoost": 0.6407,
+        "LightGBM": 0.6516,
+        "RandomForest": 0.7537
+      },
+      "xgb_size_mb": 2.981,
+      "lgb_size_mb": 2.858,
+      "rf_size_mb": 1.677,
+      "conformal_wrapped": "CrossConformalRegressor"
+    },
+    "A2B": {
+      "train_size": 1531,
+      "test_size": 471,
+      "n_features": 2282,
+      "scaler_file": "scaler_A2B.pkl",
+      "xgboost_r2": 0.73252,
+      "lgbm_r2": 0.72677,
+      "rf_r2": 0.65127,
+      "consensus_r2": 0.72283,
+      "consensus_mae": 0.52576,
+      "consensus_weights": {
+        "XGBoost": 0.3838,
+        "LightGBM": 0.3562,
+        "RandomForest": 0.2599
+      },
+      "oof_rmse": {
+        "XGBoost": 0.5862,
+        "LightGBM": 0.5973,
+        "RandomForest": 0.6462
+      },
+      "xgb_size_mb": 1.754,
+      "lgb_size_mb": 2.295,
+      "rf_size_mb": 0.898,
+      "conformal_wrapped": "CrossConformalRegressor"
+    },
+    "A3": {
+      "train_size": 3560,
+      "test_size": 846,
+      "n_features": 2284,
+      "scaler_file": "scaler_A3.pkl",
+      "xgboost_r2": 0.59331,
+      "lgbm_r2": 0.5815,
+      "rf_r2": 0.44687,
+      "consensus_r2": 0.5804,
+      "consensus_mae": 0.57637,
+      "consensus_weights": {
+        "XGBoost": 0.4146,
+        "LightGBM": 0.3829,
+        "RandomForest": 0.2025
+      },
+      "oof_rmse": {
+        "XGBoost": 0.647,
+        "LightGBM": 0.66,
+        "RandomForest": 0.7739
+      },
+      "xgb_size_mb": 2.733,
+      "lgb_size_mb": 2.849,
+      "rf_size_mb": 1.549,
+      "conformal_wrapped": "CrossConformalRegressor"
+    }
+  }
 }

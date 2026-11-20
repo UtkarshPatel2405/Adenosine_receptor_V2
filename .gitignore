@@ -1,51 +1,28 @@
-# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.egg-info/
+build/
+dist/
 
-# Virtual environments
 .venv/
 venv/
 env/
 
-# IDE
 .vscode/
 .idea/
-*.swo
 *.swp
+*.swo
 
-# Local caches / artifacts
-cache/
-reports/
-.mypy_cache/
-.ruff_cache/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-# Environment
 .env
 
-# DVC cache (tracked separately)
-.dvc/cache/
-
-# OS files
 .DS_Store
 Thumbs.db
 
-# Large binary data (tracked by DVC)
-*.parquet
-*.pt
-*.pth
-
-# Logs and temporary files
 *.log
 *.bak
-uv.lock.bak
-
-# Unwanted directories
-unwanted part/
-
-# Large model and intermediate feature caches (>100MB)
 data/processed/features_*.pkl
-models/precise/rf_*.pkl
-
+data/processed/test_smiles.pkl

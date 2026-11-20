@@ -1,44 +1,60 @@
-"""Pillar 4: Pfizer CNS-MPO & Blood-Brain Barrier (BBB) Permeability Engine."""
-from typing import Dict, Any
+"""Pfizer CNS-MPO (Wager et al., 2010) and Blood-Brain Barrier Permeability Engine."""
+from typing import Any, Dict
+
 from rdkit import Chem
 from rdkit.Chem import Descriptors, Lipinski
 
+_ALIPHATIC_BASIC_AMINE = Chem.MolFromSmarts("[NX3;H2,H1,H0;!$(NC=O);!$(NS=O);!$(n);!$(N=C);!$(NC#N);!$(Nc)]")
+_RING_AMINE = Chem.MolFromSmarts("[NX3;R;!$(NC=O);!$(NS=O);!$(n)]")
+_PYRIDINE_LIKE = Chem.MolFromSmarts("n1ccccc1")
+_ANILINE_LIKE = Chem.MolFromSmarts("c[NH2,NHR]")
+_CARBOXYL = Chem.MolFromSmarts("C(=O)[OH]")
+
 
 def _mpo_monotonic(val: float, low: float, high: float, increasing: bool = False) -> float:
-    """Standard linear desirability function between bounds."""
+    """Linear desirability ramp between bounds."""
     if increasing:
-        if val <= low: return 0.0
-        if val >= high: return 1.0
+        if val <= low:
+            return 0.0
+        if val >= high:
+            return 1.0
         return (val - low) / (high - low)
-    else:
-        if val <= low: return 1.0
-        if val >= high: return 0.0
-        return (high - val) / (high - low)
+    if val <= low:
+        return 1.0
+    if val >= high:
+        return 0.0
+    return (high - val) / (high - low)
+
+
+def _mpo_tpsa_wager2010(tpsa: float) -> float:
+    """Wager et al. (2010) TPSA hump: 1.0 on [40, 90], linear taper to 0.0 at 20 and 120."""
+    if tpsa <= 20.0 or tpsa >= 120.0:
+        return 0.0
+    if tpsa < 40.0:
+        return (tpsa - 20.0) / 20.0
+    if tpsa <= 90.0:
+        return 1.0
+    return (120.0 - tpsa) / 30.0
 
 
 def evaluate_cns_admet(smiles: str) -> Dict[str, Any]:
-    """Compute Pfizer 6-parameter CNS-MPO score (0-6) and predicted BBB LogBB."""
+    """Compute Pfizer 6-parameter CNS-MPO score (0-6) and Clark LogBB estimate."""
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
-        return {"cns_mpo_score": 0.0, "cns_class": "Invalid Structure", "log_bb": 0.0, "bbb_status": "Unknown", "mpo_components": {}}
+        return {
+            "cns_mpo_score": 0.0,
+            "cns_class": "Invalid Structure",
+            "log_bb": 0.0,
+            "bbb_status": "Unknown",
+            "mpo_components": {},
+        }
 
     c_logp = float(Descriptors.MolLogP(mol))
     mw = float(Descriptors.MolWt(mol))
     tpsa = float(Descriptors.TPSA(mol))
     hbd = int(Lipinski.NumHDonors(mol))
 
-    # Chemically calibrated most basic center pKa estimation
-    # 1. Aliphatic tertiary/secondary/primary amines (strong base)
-    _ALIPHATIC_BASIC_AMINE = Chem.MolFromSmarts("[NX3;H2,H1,H0;!$(NC=O);!$(NS=O);!$(n);!$(N=C);!$(NC#N);!$(Nc)]")
-    # 2. Piperazine / aliphatic ring amines
-    _RING_AMINE = Chem.MolFromSmarts("[NX3;R;!$(NC=O);!$(NS=O);!$(n)]")
-    # 3. Pyridine-like heterocycles
-    _PYRIDINE_LIKE = Chem.MolFromSmarts("n1ccccc1")
-    # 4. Aromatic amine (aniline, weak base)
-    _ANILINE_LIKE = Chem.MolFromSmarts("c[NH2,NHR]")
-    # 5. Carboxylic acid (acidic)
-    _CARBOXYL = Chem.MolFromSmarts("C(=O)[OH]")
-
+    has_basic_amine = True
     if mol.HasSubstructMatch(_ALIPHATIC_BASIC_AMINE) or mol.HasSubstructMatch(_RING_AMINE):
         est_pka_base = 9.2
     elif mol.HasSubstructMatch(_PYRIDINE_LIKE):
@@ -46,36 +62,26 @@ def evaluate_cns_admet(smiles: str) -> Dict[str, Any]:
     elif mol.HasSubstructMatch(_ANILINE_LIKE):
         est_pka_base = 4.6
     else:
-        est_pka_base = 2.0  # Neutral heterocycles / xanthines / purines
+        est_pka_base = 2.0
+        has_basic_amine = False
 
-    # Henderson-Hasselbalch LogD at physiological pH 7.4
     if est_pka_base > 7.4:
-        # Ionized base: fraction neutral = 1 / (1 + 10^(pKa - 7.4))
         fn = 1.0 / (1.0 + 10.0 ** (est_pka_base - 7.4))
         c_logd = round(c_logp + (fn - 1.0) * 1.5, 2)
     elif mol.HasSubstructMatch(_CARBOXYL):
-        # Acidic deprotonation at pH 7.4
         c_logd = round(c_logp - 2.0, 2)
     else:
         c_logd = round(c_logp, 2)
 
-    # Pfizer CNS-MPO desirability components (each 0.0 to 1.0)
-    # 1. CLogP (desirable <= 3.0, unacceptable >= 5.0)
     score_logp = _mpo_monotonic(c_logp, 3.0, 5.0)
-    # 2. CLogD (desirable <= 2.0, unacceptable >= 4.0)
     score_logd = _mpo_monotonic(c_logd, 2.0, 4.0)
-    # 3. MW (desirable <= 360, unacceptable >= 500)
     score_mw = _mpo_monotonic(mw, 360.0, 500.0)
-    # 4. TPSA (desirable 40-90, unacceptable > 120 or < 20)
-    score_tpsa = _mpo_monotonic(tpsa, 40.0, 90.0) if tpsa >= 40 else _mpo_monotonic(tpsa, 20.0, 40.0, increasing=True)
-    # 5. HBD (desirable <= 0.5, unacceptable >= 3.5)
+    score_tpsa = _mpo_tpsa_wager2010(tpsa)
     score_hbd = _mpo_monotonic(float(hbd), 0.5, 3.5)
-    # 6. pKa (most basic center, desirable <= 8.0, unacceptable >= 10.0)
     score_pka = _mpo_monotonic(est_pka_base, 8.0, 10.0)
 
     cns_mpo = score_logp + score_logd + score_mw + score_tpsa + score_hbd + score_pka
 
-    # Clark's empirical Blood-Brain Barrier LogBB equation: LogBB = 0.152*CLogP - 0.0148*TPSA + 0.139
     log_bb = (0.152 * c_logp) - (0.0148 * tpsa) + 0.139
     bbb_permeable = log_bb > -0.3 and tpsa < 90.0
 
@@ -94,7 +100,8 @@ def evaluate_cns_admet(smiles: str) -> Dict[str, Any]:
         "cns_class": cns_class,
         "log_bb": round(log_bb, 2),
         "bbb_status": bbb_status,
-        "est_pka": round(est_pka_base, 1),
+        "est_pka": round(est_pka_base, 1) if has_basic_amine else None,
+        "est_pka_display": f"{est_pka_base:.1f}" if has_basic_amine else "None (Acidic/Neutral)",
         "c_logd74": round(c_logd, 2),
         "mpo_components": {
             "CLogP Score": round(score_logp, 2),
@@ -105,4 +112,3 @@ def evaluate_cns_admet(smiles: str) -> Dict[str, Any]:
             "pKa Score": round(score_pka, 2),
         },
     }
-

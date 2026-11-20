@@ -23,14 +23,10 @@ class TestCalibrationQuartiles:
         """
         np.random.seed(42)
         n = 200
-        # Use a simple linear model with noise proportional to predicted std
         X = np.linspace(0, 1, n)
         y_true = 2 * X + 0.5
-        # Noise scales with std: bins 0-3 have different noise levels
-        # We sort by std, so lower std bins get low noise and higher std bins get high noise
         y_std = np.linspace(0.01, 0.8, n)
         np.random.shuffle(y_std)
-        # Scale prediction noise by std
         y_pred = y_true + y_std * np.random.randn(n)
 
         quartiles = _calibration_quartiles(y_true, y_pred, y_std)
@@ -50,7 +46,6 @@ class TestCalibrationQuartiles:
         y_pred = y_true.copy()
         y_std = np.concatenate([np.ones(10) * 0.01, np.ones(30) * 0.1])
         quartiles = _calibration_quartiles(y_true, y_pred, y_std)
-        # First quartile should have lowest std_mean
         std_means = [q["std_mean"] for q in quartiles]
         assert std_means == sorted(std_means)
 
@@ -60,7 +55,6 @@ class TestSaveWithRunId:
         with tempfile.TemporaryDirectory() as tmpdir:
             dirpath = Path(tmpdir)
             save_with_run_id({"key": "value", "num": 42}, dirpath, "test", "RUN001")
-            # Should create barcoded file and pointer
             barcoded = dirpath / "RUN001_test.json"
             pointer = dirpath / "test.json"
             assert barcoded.exists()
@@ -81,7 +75,6 @@ class TestSaveWithRunId:
             dirpath = Path(tmpdir)
             save_with_run_id({"first": True}, dirpath, "overwrite_test", "RUN003")
             save_with_run_id({"second": True}, dirpath, "overwrite_test", "RUN004")
-            # Pointer should point to newest
             with open(dirpath / "overwrite_test.json") as f:
                 pointer = json.load(f)
             assert pointer["run_id"] == "RUN004"

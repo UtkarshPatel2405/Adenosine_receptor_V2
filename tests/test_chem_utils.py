@@ -22,6 +22,13 @@ class TestCanonicalize:
         can2 = canonicalize(can1)
         assert can1 == can2
 
+    def test_salt_strip_and_charge_neutralization(self):
+        from src.chem_utils import canonicalize
+        assert canonicalize("CC(=O)[O-].[Na+]") == "CC(=O)O"
+        caff_salt = canonicalize("CN1C=NC2=C1C(=O)N(C(=O)N2C)C.[Na+].[Cl-]")
+        caff_free = canonicalize("CN1C=NC2=C1C(=O)N(C(=O)N2C)C")
+        assert caff_salt == caff_free
+
 
 class TestMolFromSmiles:
     def test_valid_smiles(self):
@@ -36,13 +43,14 @@ class TestMolFromSmiles:
 
 
 class TestQedProfile:
-    def test_returns_dict(self):
+    def test_returns_dict_with_veber_rules(self):
         from src.chem_utils import qed_profile
         result = qed_profile("CCO")
         assert isinstance(result, dict)
-        assert "QED" in result
-        assert "MW" in result
-        assert "LogP" in result
+        for key in ("QED", "MW", "LogP", "veber_tpsa_ok", "veber_rotbonds_ok", "veber_violations", "veber_pass"):
+            assert key in result
+        assert result["veber_pass"] is True
+        assert result["veber_violations"] == 0
 
     def test_invalid_smiles(self):
         from src.chem_utils import qed_profile

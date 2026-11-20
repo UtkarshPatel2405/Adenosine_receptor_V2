@@ -4,50 +4,45 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "adenosine-selectivity-model"
+name = "adenosine-receptor-profiler"
 version = "2.0.0"
-description = "Publication-grade QSAR platform for adenosine receptor binding affinity and selectivity prediction"
+description = "QSAR platform for human adenosine receptor (A1, A2A, A2B, A3) binding affinity, selectivity, and conformal uncertainty prediction"
 authors = [{ name = "Utkarsh Patel" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-    "xgboost",
-    "lightgbm",
-    "rdkit",
-    "plotly",
-    "matplotlib",
-    "seaborn",
-    "streamlit",
-    "joblib",
-    "py3Dmol",
-    "mapie",
-    "shap>=0.52.0",
-    "numba>=0.60.0",
-    "llvmlite>=0.43.0",
-    "python-dotenv",
-    "requests",
-    "openpyxl",
-    "fastapi>=0.138.2",
-    "uvicorn>=0.49.0",
-    "python-multipart>=0.0.32",
+    "numpy>=2.0.0,<3.0",
+    "pandas>=2.2.0,<3.0",
+    "scipy>=1.13.0,<2.0",
+    "scikit-learn>=1.6.0,<2.0",
+    "xgboost>=3.0.0,<4.0",
+    "lightgbm>=4.5.0,<5.0",
+    "mapie>=1.0.0,<2.0",
+    "rdkit>=2024.09",
+    "shap>=0.50.0,<1.0",
+    "joblib>=1.3.0,<2.0",
+    "openpyxl>=3.1.0,<4.0",
+    "python-dotenv>=1.0.0,<2.0",
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn>=0.30.0,<1.0",
 ]
 
 [project.optional-dependencies]
+train = [
+    "optuna>=3.6.0,<5.0",
+]
 dev = [
-    "mlflow",
-    "optuna",
+    "pytest>=8.0",
+    "ruff>=0.6.0",
 ]
 
 [tool.setuptools.packages.find]
-where = ["src", "."]
+where = ["."]
 include = ["src*"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]
@@ -58,7 +53,7 @@ ignore = ["E501", "S101"]
 "tests/*" = ["S101"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 ignore_missing_imports = true
 warn_unreachable = false
 disallow_untyped_defs = false
@@ -76,7 +71,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["tests/*", "unwanted*"]
+omit = ["tests/*"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -1,15 +1,19 @@
 from __future__ import annotations
-import json
+
+import logging
 import pickle
-import os
 from functools import lru_cache
 from typing import Optional
-from pathlib import Path 
 
 import numpy as np
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Descriptors, Lipinski, QED, rdDistGeom, rdForceFieldHelpers, rdPartialCharges
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator
+
+from src.config import MORGAN_BITS, MORGAN_RADIUS, PROCESSED_DATA_DIR
+
+logger = logging.getLogger(__name__)
 
 try:
     from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
@@ -17,19 +21,27 @@ try:
 except ImportError:
     _FILTER_CATALOG_AVAILABLE = False
 
-_MORGAN = GetMorganGenerator(radius=2, fpSize=2048)
+_MORGAN = GetMorganGenerator(radius=MORGAN_RADIUS, fpSize=MORGAN_BITS)
+_LARGEST_FRAGMENT = rdMolStandardize.LargestFragmentChooser(preferOrganic=True)
+_UNCHARGER = rdMolStandardize.Uncharger()
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-from src.config import PROCESSED_DATA_DIR
 
 @lru_cache(maxsize=10000)
 def canonicalize(smiles: str) -> Optional[str]:
+    """Parse SMILES, strip salts, neutralize charges, and return canonical isomeric SMILES."""
     if not isinstance(smiles, str) or not smiles.strip():
         return None
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
-    return Chem.MolToSmiles(mol, canonical=True)
+    try:
+        mol = _LARGEST_FRAGMENT.choose(mol)
+        mol = _UNCHARGER.uncharge(mol)
+        return Chem.MolToSmiles(mol, canonical=True, isomericSmiles=True)
+    except Exception as exc:
+        logger.warning("SMILES standardization failed for %r: %s", smiles, exc)
+        return None
+
 
 def mol_from_smiles(smiles: str):
     canon = canonicalize(smiles)
@@ -37,7 +49,13 @@ def mol_from_smiles(smiles: str):
         return None
     return Chem.MolFromSmiles(canon)
 
-def draw_2d(smiles: str, size: tuple[int, int] = (400, 300), width: Optional[int] = None, height: Optional[int] = None):
+
+def draw_2d(
+    smiles: str,
+    size: tuple[int, int] = (400, 300),
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+):
     if width is not None and height is not None:
         size = (width, height)
     mol = mol_from_smiles(smiles)
@@ -46,12 +64,18 @@ def draw_2d(smiles: str, size: tuple[int, int] = (400, 300), width: Optional[int
     try:
         from rdkit.Chem import Draw, rdDepictor
         rdDepictor.Compute2DCoords(mol)
-        img = Draw.MolToImage(mol, size=size)
-        return img
-    except Exception:
+        return Draw.MolToImage(mol, size=size)
+    except Exception as exc:
+        logger.warning("2D image rendering failed: %s", exc)
         return None
 
-def draw_2d_svg(smiles: str, size: tuple[int, int] = (400, 300), width: Optional[int] = None, height: Optional[int] = None):
+
+def draw_2d_svg(
+    smiles: str,
+    size: tuple[int, int] = (400, 300),
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+):
     if width is not None and height is not None:
         size = (width, height)
     mol = mol_from_smiles(smiles)
@@ -65,76 +89,62 @@ def draw_2d_svg(smiles: str, size: tuple[int, int] = (400, 300), width: Optional
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
         return drawer.GetDrawingText()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("SVG drawing failed, falling back to raster image: %s", exc)
     try:
         from rdkit.Chem import Draw
-        img = Draw.MolToImage(mol, size=size)
-        return img
-    except Exception:
+        return Draw.MolToImage(mol, size=size)
+    except Exception as exc:
+        logger.warning("Fallback 2D raster rendering failed: %s", exc)
         return None
+
 
 generate_2d_svg = draw_2d_svg
 
+
+def _extract_gasteiger_bounds(mol: Chem.Mol) -> tuple[float, float]:
+    charges = []
+    for atom in mol.GetAtoms():
+        if atom.HasProp("_GasteigerCharge"):
+            try:
+                c = float(atom.GetProp("_GasteigerCharge"))
+                if not np.isnan(c) and not np.isinf(c):
+                    charges.append(c)
+            except ValueError:
+                continue
+    return (min(charges), max(charges)) if charges else (0.0, 0.0)
+
+
+def _embed_3d_mol(mol: Chem.Mol) -> Chem.Mol:
+    mol_3d = Chem.AddHs(mol)
+    embed_status = rdDistGeom.EmbedMolecule(mol_3d, rdDistGeom.ETKDGv3())
+    if embed_status != 0:
+        embed_status = rdDistGeom.EmbedMolecule(mol_3d)
+    if embed_status == 0:
+        rdForceFieldHelpers.MMFFOptimizeMolecule(mol_3d)
+    return mol_3d
+
+
 def generate_3d_conformer(smiles: str) -> tuple[Optional[str], float, float]:
-    """
-    Generates a 3D conformer using ETKDGv3, optimizes it using MMFF94 force field,
-    and calculates Gasteiger partial charges.
-    Returns (mol_block, min_charge, max_charge).
-    """
+    """Generate an ETKDGv3/MMFF94 3D conformer and Gasteiger partial charge bounds."""
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None, 0.0, 0.0
-    
     try:
-        # Add hydrogens for proper 3D geometry
-        mol_3d = Chem.AddHs(mol)
-        
-        # Generate 3D coordinates using ETKDGv3
-        embed_status = rdDistGeom.EmbedMolecule(mol_3d, rdDistGeom.ETKDGv3())
-        if embed_status != 0:
-            # Fallback to standard distance geometry if ETKDGv3 fails
-            embed_status = rdDistGeom.EmbedMolecule(mol_3d)
-            
-        if embed_status == 0:
-            # Optimize structure using MMFF94 force field
-            rdForceFieldHelpers.MMFFOptimizeMolecule(mol_3d)
-            
-        # Compute Gasteiger partial charges
+        mol_3d = _embed_3d_mol(mol)
         rdPartialCharges.ComputeGasteigerCharges(mol_3d)
-        
-        # Extract charge bounds
-        charges = []
-        for atom in mol_3d.GetAtoms():
-            if atom.HasProp("_GasteigerCharge"):
-                try:
-                    c = float(atom.GetProp("_GasteigerCharge"))
-                    if not np.isnan(c) and not np.isinf(c):
-                        charges.append(c)
-                except ValueError:
-                    pass
-        
-        min_charge = min(charges) if charges else 0.0
-        max_charge = max(charges) if charges else 0.0
-        
-        # Convert to Mol block string
-        mol_block = Chem.MolToMolBlock(mol_3d)
-        return mol_block, min_charge, max_charge
-    except Exception:
-        # Fallback: compute Gasteiger charges on 2D mol if 3D conformer fails
+        min_charge, max_charge = _extract_gasteiger_bounds(mol_3d)
+        return Chem.MolToMolBlock(mol_3d), min_charge, max_charge
+    except Exception as exc:
+        logger.warning("3D conformer generation failed, falling back to 2D charges: %s", exc)
         try:
             rdPartialCharges.ComputeGasteigerCharges(mol)
-            charges = []
-            for atom in mol.GetAtoms():
-                if atom.HasProp("_GasteigerCharge"):
-                    c = float(atom.GetProp("_GasteigerCharge"))
-                    if not np.isnan(c) and not np.isinf(c):
-                        charges.append(c)
-            min_charge = min(charges) if charges else 0.0
-            max_charge = max(charges) if charges else 0.0
+            min_charge, max_charge = _extract_gasteiger_bounds(mol)
             return None, min_charge, max_charge
-        except Exception:
+        except Exception as charge_exc:
+            logger.warning("Gasteiger charge calculation failed: %s", charge_exc)
             return None, 0.0, 0.0
+
 
 @lru_cache(maxsize=1)
 def _build_pains_catalog():
@@ -146,6 +156,7 @@ def _build_pains_catalog():
     params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS_C)
     return FilterCatalog(params)
 
+
 def check_pains(smiles: str) -> list[str]:
     mol = mol_from_smiles(smiles)
     if mol is None:
@@ -153,31 +164,50 @@ def check_pains(smiles: str) -> list[str]:
     catalog = _build_pains_catalog()
     if catalog is None:
         return []
-    matches = []
-    for entry in catalog.GetMatches(mol):
-        matches.append(entry.GetDescription())
-    return matches
+    return [entry.GetDescription() for entry in catalog.GetMatches(mol)]
+
 
 def qed_profile(smiles: str) -> Optional[dict]:
+    """Compute QED, Lipinski descriptors, and Veber oral bioavailability rules."""
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
+    rotbonds = int(Lipinski.NumRotatableBonds(mol))
+    tpsa = round(float(Descriptors.TPSA(mol)), 2)
+    veber_tpsa_ok = bool(tpsa <= 140.0)
+    veber_rotbonds_ok = bool(rotbonds <= 10)
+    veber_violations = int(not veber_tpsa_ok) + int(not veber_rotbonds_ok)
     return {
         "QED": round(QED.qed(mol), 4),
         "MW": round(Descriptors.MolWt(mol), 2),
         "LogP": round(Descriptors.MolLogP(mol), 3),
         "HBD": int(Lipinski.NumHDonors(mol)),
         "HBA": int(Lipinski.NumHAcceptors(mol)),
-        "RotB": int(Lipinski.NumRotatableBonds(mol)),
+        "RotB": rotbonds,
         "AromaticRings": int(Lipinski.NumAromaticRings(mol)),
-        "TPSA": round(Descriptors.TPSA(mol), 2),
+        "TPSA": tpsa,
+        "veber_tpsa_ok": veber_tpsa_ok,
+        "veber_rotbonds_ok": veber_rotbonds_ok,
+        "veber_violations": veber_violations,
+        "veber_pass": bool(veber_violations == 0),
     }
 
-@lru_cache(maxsize=1)
+
+@lru_cache(maxsize=2)
+def _load_pickle_cached(path_str: str, mtime_ns: int):
+    with open(path_str, "rb") as f:
+        return pickle.load(f)
+
+
 def _load_train_fps():
     path = PROCESSED_DATA_DIR / "train_fps.pkl"
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    return _load_pickle_cached(str(path), path.stat().st_mtime_ns)
+
+
+def _load_train_smiles() -> list[str]:
+    path = PROCESSED_DATA_DIR / "train_smiles.pkl"
+    return _load_pickle_cached(str(path), path.stat().st_mtime_ns)
+
 
 def nearest_tanimoto(smiles: str) -> Optional[float]:
     mol = mol_from_smiles(smiles)
@@ -191,28 +221,6 @@ def nearest_tanimoto(smiles: str) -> Optional[float]:
     sims = DataStructs.BulkTanimotoSimilarity(qfp, train_fps)
     return float(np.max(sims)) if sims else None
 
-@lru_cache(maxsize=1)
-def _load_smiles_to_pdb() -> dict:
-    path = PROCESSED_DATA_DIR / "smiles_to_pdb.json"
-    if not path.exists():
-        return {"known_ligands": {}}
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except Exception:
-        return {"known_ligands": {}}
-
-
-def _smiles_hash(smiles: str) -> str:
-    import hashlib
-    return hashlib.sha256(smiles.encode("utf-8")).hexdigest()[:12]
-
-
-@lru_cache(maxsize=1)
-def _load_train_smiles() -> list[str]:
-    path = PROCESSED_DATA_DIR / "train_smiles.pkl"
-    with open(path, "rb") as f:
-        return pickle.load(f)
 
 def topk_tanimoto(smiles: str, k: int = 10) -> tuple[Optional[str], list[tuple[str, float]]]:
     canon = canonicalize(smiles)
@@ -238,40 +246,33 @@ def topk_tanimoto(smiles: str, k: int = 10) -> tuple[Optional[str], list[tuple[s
                 break
     return canon, top
 
+
 def generate_pdb_block(smiles: str) -> Optional[str]:
-    """Generates a 3D conformer and returns the PDB block string."""
+    """Generate a 3D conformer and return a PDB block string."""
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
     try:
-        mol_3d = Chem.AddHs(mol)
-        embed_status = rdDistGeom.EmbedMolecule(mol_3d, rdDistGeom.ETKDGv3())
-        if embed_status != 0:
-            embed_status = rdDistGeom.EmbedMolecule(mol_3d)
-        if embed_status == 0:
-            rdForceFieldHelpers.MMFFOptimizeMolecule(mol_3d)
-        return Chem.MolToPDBBlock(mol_3d)
-    except Exception:
+        return Chem.MolToPDBBlock(_embed_3d_mol(mol))
+    except Exception as exc:
+        logger.warning("PDB block generation failed: %s", exc)
         return None
+
 
 def generate_sdf_block(smiles: str) -> Optional[str]:
-    """Generates a 3D conformer and returns the SDF block string."""
+    """Generate a 3D conformer and return an SDF/Mol block string."""
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
     try:
-        mol_3d = Chem.AddHs(mol)
-        embed_status = rdDistGeom.EmbedMolecule(mol_3d, rdDistGeom.ETKDGv3())
-        if embed_status != 0:
-            embed_status = rdDistGeom.EmbedMolecule(mol_3d)
-        if embed_status == 0:
-            rdForceFieldHelpers.MMFFOptimizeMolecule(mol_3d)
-        return Chem.MolToMolBlock(mol_3d)
-    except Exception:
+        return Chem.MolToMolBlock(_embed_3d_mol(mol))
+    except Exception as exc:
+        logger.warning("SDF block generation failed: %s", exc)
         return None
 
+
 def generate_2d_mol_block(smiles: str) -> Optional[str]:
-    """Generates a 2D conformer and returns the Mol block string."""
+    """Generate 2D coordinates and return a Mol block string."""
     mol = mol_from_smiles(smiles)
     if mol is None:
         return None
@@ -279,5 +280,6 @@ def generate_2d_mol_block(smiles: str) -> Optional[str]:
         from rdkit.Chem import rdDepictor
         rdDepictor.Compute2DCoords(mol)
         return Chem.MolToMolBlock(mol)
-    except Exception:
+    except Exception as exc:
+        logger.warning("2D Mol block generation failed: %s", exc)
         return None

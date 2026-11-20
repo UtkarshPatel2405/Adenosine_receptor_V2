@@ -1,0 +1,22 @@
+{
+  "A1": {
+    "XGBoost": 0.3504,
+    "LightGBM": 0.3447,
+    "RandomForest": 0.3049
+  },
+  "A2A": {
+    "XGBoost": 0.3587,
+    "LightGBM": 0.3612,
+    "RandomForest": 0.2801
+  },
+  "A2B": {
+    "XGBoost": 0.3469,
+    "LightGBM": 0.333,
+    "RandomForest": 0.32
+  },
+  "A3": {
+    "XGBoost": 0.341,
+    "LightGBM": 0.3219,
+    "RandomForest": 0.3371
+  }
+}
